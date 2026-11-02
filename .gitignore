@@ -50,3 +50,6 @@ app.*.map.json
 # Local compile-time environment files. Keep the documented example.
 /config/*.json
 !/config/*.example.json
+
+.codex-build/
+.codex-finalized/
