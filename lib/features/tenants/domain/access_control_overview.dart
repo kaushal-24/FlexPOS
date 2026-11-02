@@ -157,3 +157,29 @@ class StaffInvitationResult {
   final String token;
   final DateTime expiresAt;
 }
+
+/// The non-secret result returned when an administrator creates a direct
+/// staff login. The password is intentionally not part of this model; the UI
+/// keeps it only long enough to show it once to the administrator.
+class StaffUserCredentials {
+  const StaffUserCredentials({
+    required this.userId,
+    required this.email,
+    required this.fullName,
+    required this.roleId,
+  });
+
+  factory StaffUserCredentials.fromJson(Map<String, dynamic> json) {
+    return StaffUserCredentials(
+      userId: json['user_id'] as String,
+      email: json['email'] as String,
+      fullName: json['full_name'] as String? ?? '',
+      roleId: json['role_id'] as String,
+    );
+  }
+
+  final String userId;
+  final String email;
+  final String fullName;
+  final String roleId;
+}

@@ -75,9 +75,12 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
   late final TextEditingController _prefixController;
   late final TextEditingController _footerController;
   late final TextEditingController _qrController;
+  late final TextEditingController _stockAlertRecipientsController;
   late String _template;
+  late String _paperWidth;
   late bool _showLogo;
   late bool _showQr;
+  late bool _stockAlertEmailEnabled;
   final _pinController = TextEditingController();
   bool _uploadingLogo = false;
   bool _saving = false;
@@ -99,9 +102,14 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
     _qrController = TextEditingController(
       text: widget.settings.receiptQrPayload ?? '',
     );
+    _stockAlertRecipientsController = TextEditingController(
+      text: widget.settings.stockAlertEmailRecipients ?? '',
+    );
     _template = widget.settings.receiptTemplate;
+    _paperWidth = widget.settings.receiptPaperWidth;
     _showLogo = widget.settings.receiptShowLogo;
     _showQr = widget.settings.receiptShowQr;
+    _stockAlertEmailEnabled = widget.settings.stockAlertEmailEnabled;
   }
 
   @override
@@ -110,6 +118,7 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
     _prefixController.dispose();
     _footerController.dispose();
     _qrController.dispose();
+    _stockAlertRecipientsController.dispose();
     _pinController.dispose();
     super.dispose();
   }
@@ -129,6 +138,9 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
             receiptQrPayload: _qrController.text,
             receiptShowLogo: _showLogo,
             receiptShowQr: _showQr,
+            receiptPaperWidth: _paperWidth,
+            stockAlertEmailEnabled: _stockAlertEmailEnabled,
+            stockAlertEmailRecipients: _stockAlertRecipientsController.text,
           );
       if (!mounted) return;
       widget.onSaved();
@@ -143,6 +155,29 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _showStockAlertEmailSetup() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.mark_email_read_outlined),
+        title: const Text('Email delivery setup'),
+        content: const Text(
+          'Recipients and the notification toggle are saved here. To deliver '
+          'emails, configure a server-side provider (for example Resend) with '
+          'RESEND_API_KEY and STOCK_ALERT_FROM_EMAIL, then deploy the '
+          'stock-alert-email Supabase Edge Function. No provider secret is '
+          'stored in the Flutter app.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -190,6 +225,15 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
                   },
                 ),
                 const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _showStockAlertEmailSetup,
+                    icon: const Icon(Icons.settings_outlined),
+                    label: const Text('Configure email delivery'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _taxController,
                   maxLength: 80,
@@ -229,11 +273,72 @@ class _BusinessSettingsFormState extends State<_BusinessSettingsForm> {
                   },
                 ),
                 const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _paperWidth,
+                  decoration: const InputDecoration(
+                    labelText: 'Default receipt width',
+                    helperText:
+                        'Used when opening a receipt for printing or PDF.',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '58', child: Text('58 mm thermal')),
+                    DropdownMenuItem(value: '80', child: Text('80 mm thermal')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _paperWidth = value);
+                  },
+                ),
+                const SizedBox(height: 8),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Show logo on receipts'),
                   value: _showLogo,
                   onChanged: (value) => setState(() => _showLogo = value),
+                ),
+                const Divider(height: 28),
+                Text(
+                  'Low-stock email notifications',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Optional alerts are sent by the configured server-side email provider.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enable email notifications'),
+                  value: _stockAlertEmailEnabled,
+                  onChanged: (value) =>
+                      setState(() => _stockAlertEmailEnabled = value),
+                ),
+                TextFormField(
+                  controller: _stockAlertRecipientsController,
+                  maxLength: 2000,
+                  maxLines: 2,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Notification recipients',
+                    hintText: 'owner@example.com, manager@example.com',
+                    helperText: 'Comma-separated email addresses.',
+                  ),
+                  validator: (value) {
+                    if (!_stockAlertEmailEnabled ||
+                        (value?.trim().isEmpty ?? true)) {
+                      return null;
+                    }
+                    final addresses = value!
+                        .split(',')
+                        .map((item) => item.trim())
+                        .where((item) => item.isNotEmpty);
+                    final emailPattern = RegExp(
+                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                    );
+                    if (addresses.any((item) => !emailPattern.hasMatch(item))) {
+                      return 'Use valid comma-separated email addresses.';
+                    }
+                    return null;
+                  },
                 ),
                 TextFormField(
                   controller: _qrController,

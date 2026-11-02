@@ -173,35 +173,6 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
             ],
           ),
           const SizedBox(height: 24),
-          AppPanel(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: 'Staff assignment: ',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        TextSpan(
-                          text: 'edit a register to assign it to one staff member. Open a shift for that staff member and enter the opening float; their POS session will then pick up the shift automatically. Leave it unassigned for any authorized cashier.',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
           if (data.registers.isEmpty)
             EmptyState(
               icon: Icons.point_of_sale_outlined,

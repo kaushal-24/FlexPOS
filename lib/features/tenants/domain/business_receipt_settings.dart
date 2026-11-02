@@ -10,6 +10,9 @@ class BusinessReceiptSettings {
     required this.receiptQrPayload,
     required this.receiptShowLogo,
     required this.receiptShowQr,
+    required this.receiptPaperWidth,
+    required this.stockAlertEmailEnabled,
+    required this.stockAlertEmailRecipients,
   });
 
   factory BusinessReceiptSettings.fromJson(Map<String, dynamic> json) {
@@ -24,6 +27,12 @@ class BusinessReceiptSettings {
       receiptQrPayload: _optionalText(json['receipt_qr_payload']),
       receiptShowLogo: json['receipt_show_logo'] as bool? ?? true,
       receiptShowQr: json['receipt_show_qr'] as bool? ?? false,
+      receiptPaperWidth: json['receipt_paper_width'] as String? ?? '80',
+      stockAlertEmailEnabled:
+          json['stock_alert_email_enabled'] as bool? ?? false,
+      stockAlertEmailRecipients: _optionalText(
+        json['stock_alert_email_recipients'],
+      ),
     );
   }
 
@@ -37,6 +46,9 @@ class BusinessReceiptSettings {
   final String? receiptQrPayload;
   final bool receiptShowLogo;
   final bool receiptShowQr;
+  final String receiptPaperWidth;
+  final bool stockAlertEmailEnabled;
+  final String? stockAlertEmailRecipients;
 }
 
 String? _optionalText(Object? value) {

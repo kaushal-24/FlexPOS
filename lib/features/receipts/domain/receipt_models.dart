@@ -33,6 +33,7 @@ class ReceiptDocument {
     this.receiptQrPayload,
     this.receiptShowLogo = true,
     this.receiptShowQr = false,
+    this.receiptPaperWidth = '80',
     this.logoBytes,
   });
 
@@ -75,6 +76,7 @@ class ReceiptDocument {
       receiptQrPayload: _optionalText(business['receipt_qr_payload']),
       receiptShowLogo: business['receipt_show_logo'] as bool? ?? true,
       receiptShowQr: business['receipt_show_qr'] as bool? ?? false,
+      receiptPaperWidth: business['receipt_paper_width'] as String? ?? '80',
       logoBytes: logoBytes,
       items: items.map(ReceiptLine.fromJson).toList(growable: false),
       payments: payments.map(ReceiptPayment.fromJson).toList(growable: false),
@@ -110,6 +112,7 @@ class ReceiptDocument {
   final String? receiptQrPayload;
   final bool receiptShowLogo;
   final bool receiptShowQr;
+  final String receiptPaperWidth;
   final Uint8List? logoBytes;
   final List<ReceiptLine> items;
   final List<ReceiptPayment> payments;

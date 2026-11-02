@@ -114,7 +114,8 @@ class TenantRepository implements SupabaseRepositoryContract {
         .select(
           'id,name,tax_registration_number,invoice_prefix,receipt_footer,'
           'receipt_template,receipt_logo_path,receipt_qr_payload,'
-          'receipt_show_logo,receipt_show_qr',
+          'receipt_show_logo,receipt_show_qr,receipt_paper_width,'
+          'stock_alert_email_enabled,stock_alert_email_recipients',
         )
         .eq('id', businessId)
         .single();
@@ -130,6 +131,9 @@ class TenantRepository implements SupabaseRepositoryContract {
     required String? receiptQrPayload,
     required bool receiptShowLogo,
     required bool receiptShowQr,
+    required String receiptPaperWidth,
+    required bool stockAlertEmailEnabled,
+    required String? stockAlertEmailRecipients,
   }) async {
     await _client
         .from('businesses')
@@ -148,6 +152,13 @@ class TenantRepository implements SupabaseRepositoryContract {
               : receiptQrPayload.trim(),
           'receipt_show_logo': receiptShowLogo,
           'receipt_show_qr': receiptShowQr,
+          'receipt_paper_width': receiptPaperWidth,
+          'stock_alert_email_enabled': stockAlertEmailEnabled,
+          'stock_alert_email_recipients':
+              stockAlertEmailRecipients == null ||
+                  stockAlertEmailRecipients.trim().isEmpty
+              ? null
+              : stockAlertEmailRecipients.trim(),
         })
         .eq('id', businessId);
   }
@@ -442,6 +453,100 @@ class TenantRepository implements SupabaseRepositoryContract {
     return StaffInvitationResult.fromJson(
       Map<String, dynamic>.from(result as Map),
     );
+  }
+
+  String _functionError(Object? data, String fallback) {
+    if (data is Map && data['error'] is String) {
+      final message = (data['error'] as String).trim();
+      if (message.isNotEmpty) return message;
+    }
+    return fallback;
+  }
+
+  Future<StaffUserCredentials> createStaffUser({
+    required String businessId,
+    required String email,
+    required String password,
+    required String fullName,
+    required String roleId,
+    required bool allBranches,
+    required List<String> branchIds,
+  }) async {
+    final response = await _client.functions.invoke(
+      'staff-user-admin',
+      body: {
+        'action': 'create',
+        'business_id': businessId,
+        'email': email.trim().toLowerCase(),
+        'password': password,
+        'full_name': fullName.trim(),
+        'role_id': roleId,
+        'all_branches': allBranches,
+        'branch_ids': branchIds,
+      },
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError(
+        _functionError(response.data, 'Could not create staff login.'),
+      );
+    }
+    final data = response.data is Map
+        ? Map<String, dynamic>.from(response.data as Map)
+        : <String, dynamic>{};
+    return StaffUserCredentials.fromJson(data);
+  }
+
+  Future<void> updateStaffUser({
+    required String businessId,
+    required String userId,
+    String? email,
+    String? password,
+    String? fullName,
+    String? roleId,
+    String? status,
+    bool? allBranches,
+    List<String>? branchIds,
+  }) async {
+    final body = <String, dynamic>{
+      'action': 'update',
+      'business_id': businessId,
+      'user_id': userId,
+    };
+    if (email != null) body['email'] = email.trim().toLowerCase();
+    if (password != null) body['password'] = password;
+    if (fullName != null) body['full_name'] = fullName.trim();
+    if (roleId != null) body['role_id'] = roleId;
+    if (status != null) body['status'] = status;
+    if (allBranches != null) body['all_branches'] = allBranches;
+    if (branchIds != null) body['branch_ids'] = branchIds;
+    final response = await _client.functions.invoke(
+      'staff-user-admin',
+      body: body,
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError(
+        _functionError(response.data, 'Could not update staff login.'),
+      );
+    }
+  }
+
+  Future<void> deleteStaffUser({
+    required String businessId,
+    required String userId,
+  }) async {
+    final response = await _client.functions.invoke(
+      'staff-user-admin',
+      body: {
+        'action': 'delete',
+        'business_id': businessId,
+        'user_id': userId,
+      },
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError(
+        _functionError(response.data, 'Could not delete staff login.'),
+      );
+    }
   }
 
   Future<String> acceptStaffInvitation(String token) async {

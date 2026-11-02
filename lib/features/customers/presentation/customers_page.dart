@@ -1,4 +1,6 @@
 import 'package:flexpos/core/utils/money.dart';
+import 'package:flexpos/core/utils/csv_export.dart';
+import 'package:flexpos/core/utils/pdf_export.dart';
 import 'package:flexpos/core/security/crud_permissions.dart';
 import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
@@ -96,20 +98,37 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 96),
             children: [
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Customers',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
+                  Text(
+                    'Customers',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  if (canManage)
-                    OutlinedButton.icon(
-                      onPressed: () => _createCustomerGroup(context, workspace),
-                      icon: const Icon(Icons.group_add_outlined),
-                      label: const Text('New group'),
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (canManage)
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _createCustomerGroup(context, workspace),
+                          icon: const Icon(Icons.group_add_outlined),
+                          label: const Text('New group'),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: () => _exportCustomers(items),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('Export CSV'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _exportCustomersPdf(items),
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('Export PDF'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -373,6 +392,87 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     );
   }
 
+  Future<void> _exportCustomers(List<Customer> items) async {
+    try {
+      final path = await saveCsvExport(
+        fileName: 'flexpos-customers.csv',
+        rows: [
+          const [
+            'Name',
+            'Code',
+            'Phone',
+            'Email',
+            'GSTIN',
+            'Group',
+            'Credit limit (minor)',
+            'Loyalty points',
+          ],
+          for (final customer in items)
+            [
+              customer.name,
+              customer.code,
+              customer.phone,
+              customer.email,
+              customer.gstin,
+              customer.groupName,
+              customer.creditLimitMinor,
+              customer.loyaltyPoints,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Customer CSV exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export customers: $error')),
+      );
+    }
+  }
+
+  Future<void> _exportCustomersPdf(List<Customer> items) async {
+    try {
+      final path = await savePdfExport(
+        fileName: 'flexpos-customers.pdf',
+        title: 'FlexPOS customers',
+        headers: const [
+          'Name',
+          'Code',
+          'Phone',
+          'Email',
+          'GSTIN',
+          'Group',
+          'Credit limit (minor)',
+          'Loyalty points',
+        ],
+        rows: [
+          for (final customer in items)
+            [
+              customer.name,
+              customer.code,
+              customer.phone,
+              customer.email,
+              customer.gstin,
+              customer.groupName,
+              customer.creditLimitMinor,
+              customer.loyaltyPoints,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Customer PDF exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export customers: $error')),
+      );
+    }
+  }
+
   Future<void> _copySelectedContacts(List<Customer> customers) async {
     if (customers.isEmpty) return;
     final text = customers
@@ -460,9 +560,8 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     if (saved == true) {
       ref.invalidate(customersProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Customer updated.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Customer updated.')));
       }
     }
   }
@@ -493,15 +592,16 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     );
     if (confirmed != true) return;
     try {
-      await ref.read(customerRepositoryProvider).archiveCustomer(
-        businessId: workspace.businessId,
-        customerId: customer.id,
-      );
+      await ref
+          .read(customerRepositoryProvider)
+          .archiveCustomer(
+            businessId: workspace.businessId,
+            customerId: customer.id,
+          );
       ref.invalidate(customersProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Customer archived.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Customer archived.')));
       }
     } catch (error) {
       if (context.mounted) {
@@ -574,12 +674,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   );
 }
 
-enum _CustomerAction {
-  purchaseHistory,
-  statement,
-  changeGroup,
-  loyalty,
-}
+enum _CustomerAction { purchaseHistory, statement, changeGroup, loyalty }
 
 String _pointsText(double value) {
   final rounded = value.roundToDouble() == value
@@ -1546,7 +1641,9 @@ class _CustomerDialogState extends State<_CustomerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.customer == null ? 'Create customer' : 'Edit customer'),
+      title: Text(
+        widget.customer == null ? 'Create customer' : 'Edit customer',
+      ),
       content: SizedBox(
         width: 520,
         child: Form(

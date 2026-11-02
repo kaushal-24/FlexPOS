@@ -135,7 +135,8 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
         label: l10n.products,
       ),
       if ((workspace?.isFeatureEnabled(FeatureCodes.inventory) ?? false) &&
-          (workspace?.canRead('inventory') ?? false))
+          (workspace?.canRead('inventory') ?? false) &&
+          (workspace?.roleName.trim().toLowerCase() != 'cashier'))
         _ShellDestination(
           route: '/inventory',
           icon: const Icon(Icons.warehouse_outlined),

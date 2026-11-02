@@ -44,6 +44,7 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
   late Future<ReceiptDocument> _receipt;
   bool _working = false;
   ReceiptPaperSize _paperSize = ReceiptPaperSize.mm80;
+  bool _paperSizeInitialized = false;
 
   @override
   void initState() {
@@ -52,10 +53,17 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
   }
 
   void _load() {
-    _receipt = widget.repository.fetchReceipt(
-      businessId: widget.businessId,
-      saleId: widget.saleId,
-    );
+    _receipt = widget.repository
+        .fetchReceipt(businessId: widget.businessId, saleId: widget.saleId)
+        .then((receipt) {
+          if (mounted && !_paperSizeInitialized) {
+            _paperSizeInitialized = true;
+            _paperSize = receipt.receiptPaperWidth == '58'
+                ? ReceiptPaperSize.mm58
+                : ReceiptPaperSize.mm80;
+          }
+          return receipt;
+        });
   }
 
   Future<void> _print(ReceiptDocument receipt) async {

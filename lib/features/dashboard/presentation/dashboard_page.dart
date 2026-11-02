@@ -8,6 +8,7 @@ import 'package:flexpos/features/auth/data/auth_repository.dart';
 import 'package:flexpos/features/accounting/data/accounting_repository.dart';
 import 'package:flexpos/features/accounting/domain/accounting_models.dart';
 import 'package:flexpos/features/tenants/domain/business_workspace.dart';
+import 'package:flexpos/features/tenants/domain/tenant_audit_log.dart';
 import 'package:flexpos/features/tenants/presentation/tenant_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,6 +79,12 @@ class _WorkspaceDashboard extends ConsumerWidget {
     final dashboard = canViewReports
         ? ref.watch(accountingDashboardProvider(reportPeriod))
         : null;
+    final stockNotifications = canViewReports
+        ? ref.watch(stockAlertNotificationsProvider)
+        : null;
+    final auditLogs = workspace.canRead('audit')
+        ? ref.watch(auditLogsProvider(workspace.businessId))
+        : null;
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -99,41 +106,39 @@ class _WorkspaceDashboard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Center(
-                  child: AppPanel(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 28,
-                      vertical: 28,
-                    ),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      runAlignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 36,
-                      runSpacing: 24,
-                      children: [
-                        _WorkspaceFact(
-                          icon: Icons.badge_outlined,
-                          label: 'Role',
-                          value: workspace.roleName,
-                        ),
-                        _WorkspaceFact(
-                          icon: Icons.location_on_outlined,
-                          label: 'Branches',
-                          value: workspace.branches.length.toString(),
-                        ),
-                        _WorkspaceFact(
-                          icon: Icons.payments_outlined,
-                          label: 'Currency',
-                          value: workspace.currencyCode,
-                        ),
-                        _WorkspaceFact(
-                          icon: Icons.schedule_outlined,
-                          label: 'Timezone',
-                          value: workspace.timezone,
-                        ),
-                      ],
-                    ),
+                AppPanel(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 28,
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    runAlignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 36,
+                    runSpacing: 24,
+                    children: [
+                      _WorkspaceFact(
+                        icon: Icons.badge_outlined,
+                        label: 'Role',
+                        value: workspace.roleName,
+                      ),
+                      _WorkspaceFact(
+                        icon: Icons.location_on_outlined,
+                        label: 'Branches',
+                        value: workspace.branches.length.toString(),
+                      ),
+                      _WorkspaceFact(
+                        icon: Icons.payments_outlined,
+                        label: 'Currency',
+                        value: workspace.currencyCode,
+                      ),
+                      _WorkspaceFact(
+                        icon: Icons.schedule_outlined,
+                        label: 'Timezone',
+                        value: workspace.timezone,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -149,6 +154,20 @@ class _WorkspaceDashboard extends ConsumerWidget {
                 currencyCode: workspace.currencyCode,
                 onRetry: () =>
                     ref.invalidate(accountingDashboardProvider(reportPeriod)),
+              ),
+            ),
+          ),
+        if (canViewReports || auditLogs != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            sliver: SliverToBoxAdapter(
+              child: _DashboardAlerts(
+                stockNotifications: stockNotifications,
+                auditLogs: auditLogs,
+                onOpenReports: () => context.go('/reports'),
+                onOpenAudit: () => context.go('/audit-log'),
+                onRefreshStock: () =>
+                    ref.invalidate(stockAlertNotificationsProvider),
               ),
             ),
           ),
@@ -211,6 +230,149 @@ class _WorkspaceDashboard extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _DashboardAlerts extends StatelessWidget {
+  const _DashboardAlerts({
+    required this.stockNotifications,
+    required this.auditLogs,
+    required this.onOpenReports,
+    required this.onOpenAudit,
+    required this.onRefreshStock,
+  });
+
+  final AsyncValue<List<StockAlertNotification>?>? stockNotifications;
+  final AsyncValue<List<TenantAuditLog>>? auditLogs;
+  final VoidCallback onOpenReports;
+  final VoidCallback onOpenAudit;
+  final VoidCallback onRefreshStock;
+
+  @override
+  Widget build(BuildContext context) {
+    final stockItems = stockNotifications?.asData?.value
+        ?.where((item) => item.status == 'open')
+        .toList(growable: false);
+    final auditRows = auditLogs?.asData?.value;
+    final auditItems = auditRows
+        ?.where(_isAlertEvent)
+        .take(5)
+        .toList(growable: false);
+    final loading =
+        stockNotifications?.isLoading == true || auditLogs?.isLoading == true;
+    if (!loading && stockItems == null && auditItems == null) {
+      return const SizedBox.shrink();
+    }
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notifications_active_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Alerts and monitoring',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              if (loading)
+                const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (stockItems != null) ...[
+            _AlertSummaryTile(
+              icon: Icons.inventory_2_outlined,
+              title: 'Low-stock notifications',
+              detail: stockItems.isEmpty
+                  ? 'No open stock alerts.'
+                  : '${stockItems.length} item${stockItems.length == 1 ? '' : 's'} need attention.',
+              tone: stockItems.isEmpty
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : Theme.of(context).colorScheme.error,
+              actionLabel: stockItems.isEmpty ? 'Refresh' : 'Open reports',
+              onPressed: stockItems.isEmpty ? onRefreshStock : onOpenReports,
+            ),
+          ],
+          if (auditItems != null) ...[
+            if (stockItems != null) const Divider(height: 24),
+            _AlertSummaryTile(
+              icon: Icons.security_outlined,
+              title: 'Security and cash-control alerts',
+              detail: auditItems.isEmpty
+                  ? 'No recent failed-login, refund, discount, or variance events.'
+                  : '${auditItems.length} recent event${auditItems.length == 1 ? '' : 's'} require review.',
+              tone: auditItems.isEmpty
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : Theme.of(context).colorScheme.tertiary,
+              actionLabel: 'Open audit log',
+              onPressed: onOpenAudit,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertSummaryTile extends StatelessWidget {
+  const _AlertSummaryTile({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.tone,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+  final Color tone;
+  final String actionLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, color: tone),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 3),
+            Text(
+              detail,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 12),
+      OutlinedButton(onPressed: onPressed, child: Text(actionLabel)),
+    ],
+  );
+}
+
+bool _isAlertEvent(TenantAuditLog item) {
+  final action = item.action.toLowerCase();
+  return action.contains('failed') ||
+      action.contains('refund') ||
+      action.contains('discount') ||
+      action.contains('variance') ||
+      action.contains('login');
 }
 
 class _DashboardMetrics extends StatelessWidget {
@@ -319,6 +481,47 @@ class _DashboardMetrics extends StatelessWidget {
                 );
               },
             ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth >= 760
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _DashboardBreakdownPanel(
+                      width: width,
+                      title: 'Payment reconciliation',
+                      icon: Icons.payments_outlined,
+                      emptyLabel: 'No settled payment activity yet.',
+                      rows: [
+                        for (final item in data.paymentBreakdown)
+                          (
+                            label: _paymentMethodLabel(item.method),
+                            value: formatMoney(currencyCode, item.totalMinor),
+                          ),
+                      ],
+                    ),
+                    _DashboardBreakdownPanel(
+                      width: width,
+                      title: 'Cashier performance',
+                      icon: Icons.badge_outlined,
+                      emptyLabel: 'No cashier sales activity yet.',
+                      rows: [
+                        for (final item in data.employeeBreakdown.take(5))
+                          (
+                            label: item.name,
+                            value:
+                                '${item.orderCount} sale${item.orderCount == 1 ? '' : 's'} · ${formatMoney(currencyCode, item.totalMinor)}',
+                          ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
           ],
         );
       },
@@ -366,6 +569,69 @@ class _DashboardKpi extends StatelessWidget {
   );
 }
 
+class _DashboardBreakdownPanel extends StatelessWidget {
+  const _DashboardBreakdownPanel({
+    required this.width,
+    required this.title,
+    required this.icon,
+    required this.rows,
+    required this.emptyLabel,
+  });
+
+  final double width;
+  final String title;
+  final IconData icon;
+  final List<({String label, String value})> rows;
+  final String emptyLabel;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Text(
+              emptyLabel,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            )
+          else
+            for (final row in rows) ...[
+              Row(
+                children: [
+                  Expanded(child: Text(row.label)),
+                  const SizedBox(width: 8),
+                  Text(
+                    row.value,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ],
+              ),
+              if (row != rows.last) const Divider(height: 18),
+            ],
+        ],
+      ),
+    ),
+  );
+}
+
+String _paymentMethodLabel(String value) => value
+    .split('_')
+    .where((part) => part.isNotEmpty)
+    .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+    .join(' ');
+
 class _DashboardQuickActions extends StatelessWidget {
   const _DashboardQuickActions({required this.workspace});
 
@@ -382,7 +648,8 @@ class _DashboardQuickActions extends StatelessWidget {
           label: 'New product',
           route: '/products',
         ),
-      if (workspace.canUpdate('inventory'))
+      if (workspace.canUpdate('inventory') &&
+          workspace.roleName.trim().toLowerCase() != 'cashier')
         (
           icon: Icons.inventory_2_outlined,
           label: 'Adjust stock',

@@ -1,4 +1,6 @@
 import 'package:flexpos/core/utils/money.dart';
+import 'package:flexpos/core/utils/csv_export.dart';
+import 'package:flexpos/core/utils/pdf_export.dart';
 import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
 import 'package:flexpos/core/widgets/data_list_controls.dart';
@@ -104,9 +106,31 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 96),
               children: [
-                Text(
-                  'Expenses',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 8,
+                  children: [
+                    Text(
+                      'Expenses',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _exportExpenses(items),
+                          icon: const Icon(Icons.download_outlined),
+                          label: const Text('Export CSV'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _exportExpensesPdf(items),
+                          icon: const Icon(Icons.picture_as_pdf_outlined),
+                          label: const Text('Export PDF'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -166,8 +190,9 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
                           : () => _copySelectedExpenses(
                               items
                                   .where(
-                                    (expense) =>
-                                        _selectedExpenseIds.contains(expense.id),
+                                    (expense) => _selectedExpenseIds.contains(
+                                      expense.id,
+                                    ),
                                   )
                                   .toList(growable: false),
                             ),
@@ -350,6 +375,95 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
         },
       ),
     );
+  }
+
+  Future<void> _exportExpenses(List<ExpenseEntry> items) async {
+    try {
+      final path = await saveCsvExport(
+        fileName: 'flexpos-expenses.csv',
+        rows: [
+          const [
+            'Expense number',
+            'Date',
+            'Category',
+            'Branch',
+            'Vendor',
+            'Entry type',
+            'Amount (minor)',
+            'Tax (minor)',
+            'Payment method',
+            'Approval status',
+          ],
+          for (final expense in items)
+            [
+              expense.expenseNumber,
+              expense.incurredOn.toIso8601String(),
+              expense.categoryName,
+              expense.branchName,
+              expense.vendorName,
+              expense.entryType,
+              expense.signedAmountMinor,
+              expense.taxAmountMinor,
+              expense.paymentMethod,
+              expense.approvalStatus,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Expenses CSV exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export expenses: $error')),
+      );
+    }
+  }
+
+  Future<void> _exportExpensesPdf(List<ExpenseEntry> items) async {
+    try {
+      final path = await savePdfExport(
+        fileName: 'flexpos-expenses.pdf',
+        title: 'FlexPOS expenses',
+        headers: const [
+          'Expense number',
+          'Incurred on',
+          'Category',
+          'Branch',
+          'Vendor',
+          'Entry type',
+          'Amount (minor)',
+          'Tax (minor)',
+          'Payment method',
+          'Approval status',
+        ],
+        rows: [
+          for (final item in items)
+            [
+              item.expenseNumber,
+              item.incurredOn.toIso8601String(),
+              item.categoryName,
+              item.branchName,
+              item.vendorName,
+              item.entryType,
+              item.amountMinor,
+              item.taxAmountMinor,
+              item.paymentMethod,
+              item.approvalStatus,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Expenses PDF exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export expenses: $error')),
+      );
+    }
   }
 
   Future<void> _copySelectedExpenses(List<ExpenseEntry> expenses) async {

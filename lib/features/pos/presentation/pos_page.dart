@@ -6,6 +6,7 @@ import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
 import 'package:flexpos/core/widgets/empty_state.dart';
 import 'package:flexpos/core/widgets/product_image.dart';
+import 'package:flexpos/core/providers/core_providers.dart';
 import 'package:flexpos/app/theme/app_motion.dart';
 import 'package:flexpos/core/security/biometric_reentry.dart';
 import 'package:flexpos/core/security/crud_permissions.dart';
@@ -55,6 +56,7 @@ class _PosPageState extends ConsumerState<PosPage> {
   String _query = '';
   String? _categoryId;
   bool _favoritesOnly = false;
+  bool _recentOnly = false;
   String? _warehouseId;
   String? _shiftId;
   String? _customerId;
@@ -80,6 +82,17 @@ class _PosPageState extends ConsumerState<PosPage> {
   DateTime? _resumedQuoteValidUntil;
   SalesOrder? _resumedSalesOrder;
   bool _salesOrderDirty = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Put the POS in scanner-ready mode as soon as its first frame is
+    // mounted. Hardware scanners behave like a keyboard and need a focused
+    // text field before they send the first code.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusCatalogSearch();
+    });
+  }
 
   @override
   void dispose() {
@@ -206,6 +219,16 @@ class _PosPageState extends ConsumerState<PosPage> {
       categoryId: selectedCategoryId,
       favoritesOnly: _favoritesOnly,
     );
+    final recentProductIds =
+        ref
+            .read(sharedPreferencesProvider)
+            .getStringList(_recentProductsKey(workspace.businessId)) ??
+        const <String>[];
+    final visibleProducts = _recentOnly
+        ? products
+              .where((product) => recentProductIds.contains(product.variantId))
+              .toList(growable: false)
+        : products;
     final registerBusy =
         _checkingOut ||
         _holdingCart ||
@@ -256,11 +279,15 @@ class _PosPageState extends ConsumerState<PosPage> {
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 900;
             final catalog = _CatalogPane(
-              products: products,
+              products: visibleProducts,
               categories: data.categories,
               selectedCategoryId: selectedCategoryId,
               favoritesOnly: _favoritesOnly,
               hasFavorites: data.products.any((product) => product.isFavorite),
+              recentOnly: _recentOnly,
+              hasRecentProducts: recentProductIds.any(
+                (id) => data.products.any((product) => product.variantId == id),
+              ),
               data: data,
               warehouseId: selectedWarehouse.id,
               currencyCode: workspace.currencyCode,
@@ -279,13 +306,25 @@ class _PosPageState extends ConsumerState<PosPage> {
               categoryChanged: (value) => setState(() {
                 _categoryId = value;
                 _favoritesOnly = false;
+                _recentOnly = false;
               }),
               favoritesChanged: (value) => setState(() {
                 _favoritesOnly = value;
+                _recentOnly = false;
                 if (value) _categoryId = null;
               }),
-              addProduct: (product) =>
-                  _addProduct(product, data, selectedWarehouse.id),
+              recentChanged: (value) => setState(() {
+                _recentOnly = value;
+                _favoritesOnly = false;
+                if (value) _categoryId = null;
+              }),
+              addProduct: (product) {
+                _addProduct(product, data, selectedWarehouse.id);
+                // A cashier may add a product by tapping the catalog and then
+                // immediately scan the next one. Restore scanner focus after
+                // the cart rebuild so no F2 press is required.
+                _focusCatalogSearchAfterFrame();
+              },
               createCustomItem: () => _createCustomSaleItem(workspace, data),
             );
             final cart = _CartPane(
@@ -422,11 +461,19 @@ class _PosPageState extends ConsumerState<PosPage> {
   }
 
   void _focusCatalogSearch() {
+    if (!mounted) return;
     _catalogSearchFocusNode.requestFocus();
     _catalogSearchController.selection = TextSelection(
       baseOffset: 0,
       extentOffset: _catalogSearchController.text.length,
     );
+  }
+
+  void _focusCatalogSearchAfterFrame() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusCatalogSearch();
+    });
   }
 
   void _selectPaymentShortcut(String method) {
@@ -557,13 +604,13 @@ class _PosPageState extends ConsumerState<PosPage> {
           ),
         );
       }
-      if (focusSearch) _focusCatalogSearch();
+      if (focusSearch) _focusCatalogSearchAfterFrame();
       return;
     }
     _addProduct(product, data, warehouseId);
     _catalogSearchController.clear();
     setState(() => _query = '');
-    if (focusSearch) _focusCatalogSearch();
+    if (focusSearch) _focusCatalogSearchAfterFrame();
   }
 
   Future<void> _showBarcodeScanner(
@@ -588,7 +635,7 @@ class _PosPageState extends ConsumerState<PosPage> {
           ],
         ),
       );
-      _focusCatalogSearch();
+      _focusCatalogSearchAfterFrame();
       return;
     }
 
@@ -602,6 +649,9 @@ class _PosPageState extends ConsumerState<PosPage> {
         },
       ),
     );
+    // The camera dialog temporarily owns focus. Return to the hardware
+    // scanner field as soon as it closes so the next scan is immediate.
+    _focusCatalogSearchAfterFrame();
   }
 
   bool get _cameraScannerSupported {
@@ -2491,6 +2541,12 @@ class _PosPageState extends ConsumerState<PosPage> {
               shiftId: shift?.id,
             );
       var result = Map<String, dynamic>.from(rawResult);
+      if (resumedSalesOrder == null) {
+        await _rememberRecentlySold(
+          workspace.businessId,
+          items.map((item) => item.product.variantId),
+        );
+      }
       if (_paymentMethod == 'razorpay') {
         final paymentId = await repository.findPendingUpiPaymentId(
           result['sale_id'] as String,
@@ -2689,6 +2745,25 @@ class _PosPageState extends ConsumerState<PosPage> {
     } finally {
       if (mounted) setState(() => _checkingOut = false);
     }
+  }
+
+  static String _recentProductsKey(String businessId) =>
+      'pos_recently_sold_products_$businessId';
+
+  Future<void> _rememberRecentlySold(
+    String businessId,
+    Iterable<String> variantIds,
+  ) async {
+    final preferences = ref.read(sharedPreferencesProvider);
+    final existing =
+        preferences.getStringList(_recentProductsKey(businessId)) ??
+        const <String>[];
+    final ordered = <String>[];
+    for (final id in [...variantIds, ...existing]) {
+      if (id.isNotEmpty && !ordered.contains(id)) ordered.add(id);
+      if (ordered.length == 16) break;
+    }
+    await preferences.setStringList(_recentProductsKey(businessId), ordered);
   }
 
   Future<void> _applyCoupon(
@@ -3072,6 +3147,8 @@ class _CatalogPane extends StatelessWidget {
     required this.selectedCategoryId,
     required this.favoritesOnly,
     required this.hasFavorites,
+    required this.recentOnly,
+    required this.hasRecentProducts,
     required this.data,
     required this.warehouseId,
     required this.currencyCode,
@@ -3084,6 +3161,7 @@ class _CatalogPane extends StatelessWidget {
     required this.scanBarcode,
     required this.categoryChanged,
     required this.favoritesChanged,
+    required this.recentChanged,
     required this.addProduct,
     required this.createCustomItem,
   });
@@ -3093,6 +3171,8 @@ class _CatalogPane extends StatelessWidget {
   final String? selectedCategoryId;
   final bool favoritesOnly;
   final bool hasFavorites;
+  final bool recentOnly;
+  final bool hasRecentProducts;
   final CatalogSnapshot data;
   final String warehouseId;
   final String currencyCode;
@@ -3105,6 +3185,7 @@ class _CatalogPane extends StatelessWidget {
   final VoidCallback scanBarcode;
   final ValueChanged<String?> categoryChanged;
   final ValueChanged<bool> favoritesChanged;
+  final ValueChanged<bool> recentChanged;
   final ValueChanged<CatalogProduct> addProduct;
   final VoidCallback createCustomItem;
 
@@ -3127,13 +3208,19 @@ class _CatalogPane extends StatelessWidget {
                   controller: searchController,
                   focusNode: searchFocusNode,
                   autofocus: true,
+                  // Barcode scanners submit an Enter key after each code.
+                  // Override Flutter's default editing completion behavior so
+                  // that Enter does not unfocus this field between scans.
+                  onEditingComplete: () {},
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textInputAction: TextInputAction.done,
                   onChanged: queryChanged,
                   onSubmitted: submitSearch,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search_rounded),
                     labelText: 'Search products, SKU, or barcode',
-                    helperText: 'Scan a barcode and press Enter · F2 focuses this field',
+                    helperText: 'Scan a barcode and press Enter · scanner stays focused',
                     suffixIcon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -3162,25 +3249,43 @@ class _CatalogPane extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (categories.isNotEmpty || hasFavorites) ...[
+                if (categories.isNotEmpty ||
+                    hasFavorites ||
+                    hasRecentProducts) ...[
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 42,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: categories.length + (hasFavorites ? 2 : 1),
+                      itemCount:
+                          categories.length +
+                          1 +
+                          (hasFavorites ? 1 : 0) +
+                          (hasRecentProducts ? 1 : 0),
                       separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           return ChoiceChip(
                             selected:
-                                selectedCategoryId == null && !favoritesOnly,
+                                selectedCategoryId == null &&
+                                !favoritesOnly &&
+                                !recentOnly,
                             onSelected: (_) => categoryChanged(null),
                             avatar: const Icon(Icons.apps_rounded, size: 18),
                             label: const Text('All'),
                           );
                         }
-                        if (hasFavorites && index == 1) {
+                        final recentIndex = 1;
+                        if (hasRecentProducts && index == recentIndex) {
+                          return ChoiceChip(
+                            selected: recentOnly,
+                            onSelected: (_) => recentChanged(true),
+                            avatar: const Icon(Icons.history_rounded, size: 18),
+                            label: const Text('Recently sold'),
+                          );
+                        }
+                        final favoritesIndex = 1 + (hasRecentProducts ? 1 : 0);
+                        if (hasFavorites && index == favoritesIndex) {
                           return ChoiceChip(
                             selected: favoritesOnly,
                             onSelected: (_) => favoritesChanged(true),
@@ -3188,11 +3293,16 @@ class _CatalogPane extends StatelessWidget {
                             label: const Text('Favorites'),
                           );
                         }
-                        final categoryIndex = index - (hasFavorites ? 2 : 1);
+                        final categoryIndex =
+                            index -
+                            1 -
+                            (hasRecentProducts ? 1 : 0) -
+                            (hasFavorites ? 1 : 0);
                         final category = categories[categoryIndex];
                         return ChoiceChip(
                           selected:
                               !favoritesOnly &&
+                              !recentOnly &&
                               selectedCategoryId == category.id,
                           onSelected: (_) => categoryChanged(category.id),
                           label: Text(category.name),
@@ -3211,12 +3321,18 @@ class _CatalogPane extends StatelessWidget {
             child: EmptyState(
               icon: favoritesOnly
                   ? Icons.star_border_rounded
+                  : recentOnly
+                  ? Icons.history_toggle_off_rounded
                   : Icons.search_off_rounded,
               title: favoritesOnly
                   ? 'No favorite products found'
+                  : recentOnly
+                  ? 'No recently sold products'
                   : 'No products found',
               message: favoritesOnly
                   ? 'Mark products as favorites or try a different search.'
+                  : recentOnly
+                  ? 'Completed sales will appear here after the first checkout.'
                   : 'Add a product or try a different search.',
             ),
           )
@@ -3233,47 +3349,40 @@ class _CatalogPane extends StatelessWidget {
                 return SliverGrid.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    mainAxisExtent: 276,
+                    // Keep every catalog card the same height while giving
+                    // the image a larger, predictable presentation area.
+                    mainAxisExtent: 312,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    final balance = data.balances
-                        .where(
-                          (item) =>
-                              item.variantId == product.variantId &&
-                              item.warehouseId == warehouseId,
-                        )
-                        .firstOrNull;
                     final stock = data.stockForWarehouse(
                       product.variantId,
                       warehouseId,
                     );
-                    final threshold = balance?.reorderPoint ?? 0;
                     final outOfStock = product.trackInventory && stock < 1;
-                    final lowStock =
-                        product.trackInventory &&
-                        !outOfStock &&
-                        threshold > 0 &&
-                        stock <= threshold;
                     final available = !outOfStock;
                     final statusColor = outOfStock
                         ? Theme.of(context).colorScheme.error
-                        : Colors.orange.shade700;
+                        : Theme.of(context).colorScheme.primary;
                     final panel = AppPanel(
                       onTap: available ? () => addProduct(product) : null,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ProductImage(
-                            imagePath: product.imagePath,
-                            width: double.infinity,
-                            height: 128,
-                            borderRadius: 10,
-                            fit: BoxFit.contain,
-                            iconSize: 36,
+                          // Use one aspect-ratio frame for every product, but
+                          // keep the source fully visible. Cover was cropping
+                          // bottle tops and labels on portrait uploads.
+                          AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: ProductImage(
+                              imagePath: product.imagePath,
+                              borderRadius: 10,
+                              fit: BoxFit.contain,
+                              iconSize: 42,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -3308,7 +3417,7 @@ class _CatalogPane extends StatelessWidget {
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
-                              if (outOfStock || lowStock)
+                              if (product.trackInventory)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 7,
@@ -3324,7 +3433,7 @@ class _CatalogPane extends StatelessWidget {
                                       Icon(
                                         outOfStock
                                             ? Icons.block_outlined
-                                            : Icons.warning_amber_rounded,
+                                            : Icons.check_circle_outline,
                                         size: 14,
                                         color: statusColor,
                                       ),
@@ -3332,7 +3441,7 @@ class _CatalogPane extends StatelessWidget {
                                       Text(
                                         outOfStock
                                             ? 'Out of stock'
-                                            : 'Low stock',
+                                            : 'In stock',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelSmall
@@ -3358,10 +3467,10 @@ class _CatalogPane extends StatelessWidget {
                               ),
                               Text(
                                 product.trackInventory
-                                    ? stock.toStringAsFixed(0)
+                                    ? (outOfStock ? 'Out of stock' : 'In stock')
                                     : 'Service',
                                 style: TextStyle(
-                                  color: outOfStock || lowStock
+                                  color: outOfStock
                                       ? statusColor
                                       : Theme.of(context).colorScheme.primary,
                                 ),
@@ -3371,7 +3480,7 @@ class _CatalogPane extends StatelessWidget {
                         ],
                       ),
                     );
-                    if (!outOfStock && !lowStock) return panel;
+                    if (!outOfStock) return panel;
                     return DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(

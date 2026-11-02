@@ -90,10 +90,15 @@ trackable implementation document for **FlexPOS**.
   cancellation actions.
 - [x] Barcode-focused keyboard workflow and scanner focus management with
   autofocus, F2 refocus, Enter submission, and exact-match protection.
+- [x] Cashier productivity quick access. POS now records the last 16 sold
+  variants per business and exposes a Recently sold filter alongside Favorites.
 - [x] Complete production dashboard with the requested 30-day sales, gross
   profit, tax, expense, receivables, and low-stock KPIs plus quick actions for
   POS, products, inventory, orders, customers, and reports. The deep reports
   route remains available for custom periods and detailed analytics.
+- [x] Dashboard management previews. The home dashboard now includes payment
+  reconciliation totals, cashier performance summaries, low-stock alerts, and
+  security/cash-control audit alerts with direct links to detailed reports.
 - [x] POS category tabs with horizontally scrollable category choices that
   combine with normalized product, SKU, barcode, and category-name search.
 - [x] POS product grid/list, cart, tax calculation, customer selection, and
@@ -174,6 +179,10 @@ trackable implementation document for **FlexPOS**.
   lookup; setup guidance is documented in `docs/hardware-scanner-setup.md`.
 - [x] Product variants.
 - [x] Units and fractional-quantity schema.
+- [x] Cashier stock visibility boundary. Cashiers do not see the Inventory
+  module or direct inventory details; POS catalog cards expose only `In stock`
+  or `Out of stock` while exact quantities remain internal for checkout
+  validation.
 - [x] Custom sale items. Authorized cashiers can add one-off service items from
   POS with a name, price, quantity, optional tax rate, generated SKU, and
   idempotent audited backend creation.
@@ -273,6 +282,8 @@ trackable implementation document for **FlexPOS**.
 - [x] 80 mm thermal receipt. The PDF layout adapts to narrow printer formats;
   selectable 80 mm PDF generation and preview are implemented and defaulted;
   physical device validation remains.
+- [x] Persisted receipt printer preference. Business settings store a default
+  58 mm or 80 mm thermal width, and receipt preview/print opens at that width.
 - [x] A4 PDF invoice/receipt.
 - [x] FlexPOS branding mark in the receipt PDF and in-app preview. The supplied
   transparent logo asset is embedded for both 58 mm and 80 mm layouts.
@@ -398,7 +409,9 @@ trackable implementation document for **FlexPOS**.
 - [x] Low-stock notification workflow. Threshold-based alerts can be refreshed
   into durable, tenant-scoped in-app notifications, automatically resolve when
   stock recovers, and can be acknowledged by inventory managers with audit
-  history and branch-scoped visibility.
+  history and branch-scoped visibility. The dashboard now includes a compact
+  notification center, and business settings persist optional email recipients
+  and an enable flag; delivery remains server-provider configuration.
 - [x] Permission- and branch-scoped dead-stock analysis using a 90-day
   no-sale threshold, explicit never-sold inventory, value exposure, reserved
   quantity, highest-value items, warehouse/category breakdowns, and
@@ -724,7 +737,9 @@ the enabled modules with search, sorting, pagination, creation, and transitions.
 - [x] Feature entitlements. Industry modules are available through the
   administrator-controlled entitlement screen and enforced by database RLS.
 - [x] SaaS administration.
-- [x] Import/export framework.
+- [x] Import/export framework. Products, sales, inventory, customers, and
+  expenses expose permission-aware CSV exports; the reports workspace retains
+  CSV, Excel, and PDF exports for management datasets.
 - [x] Backup and recovery documentation.
 - [x] Barcode and label generation.
 - [x] English localization foundation.
@@ -1116,11 +1131,26 @@ offline POS items are explicitly marked intentionally disabled).
 - [x] Visible CRUD controls pass (2026-11-02): products now expose labeled
   create, edit, bulk-edit, image, price, inventory-flag, and archive actions;
   branches expose labeled edit and archive; businesses expose create, edit,
-  and archive management; staff exposes labeled role/branch edit and revoke
-  access; sales exposes new-sale, detail, audited edit, receipt, return,
+  and archive management; staff exposes labeled add/invite, view details,
+  role/branch edit, reactivation, and remove-access controls; sales exposes
+  new-sale, detail, audited edit, receipt, return,
   exchange, and reconciliation actions while preserving immutable posted-sale
   history. The primary administration destinations remain reachable from the
   navigation on narrow and wide layouts.
+- [x] User-management CRUD detail pass (2026-11-03): each staff membership now
+  has an explicit View action with identity, role, status, and branch details;
+  Edit access updates the login name/email/password plus role/status/branches;
+  Reactivate restores suspended or revoked access; Remove access revokes only
+  the business membership; Delete login disables the Auth account and revokes
+  access while retaining audit history. Administrators can create a
+  custom-email login directly without an invitation, with the temporary
+  password shown once. The server-side `staff-user-admin` Edge Function keeps
+  privileged Auth operations out of Flutter and enforces `staff.manage`.
+- [x] Staff CRUD backend grant repair (2026-11-03): restored narrowly scoped
+  server-side `service_role` grants for staff membership, profile, role,
+  branch, and tenant-audit tables so the deployed admin function can complete
+  create, edit, revoke, reactivate, and login-disable operations without
+  changing authenticated-user RLS policies.
 - [x] POS customer lookup pass (2026-11-02): checkout now uses a searchable
   customer-name selector with a walk-in fallback, so cashiers can find a
   customer without scrolling a long list.

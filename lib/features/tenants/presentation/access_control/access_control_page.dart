@@ -144,6 +144,60 @@ class _AccessControlContent extends ConsumerWidget {
     );
   }
 
+  Future<void> _openCreateUser(BuildContext context, WidgetRef ref) async {
+    final roles = _assignableRoles;
+    if (roles.isEmpty) {
+      _showError(
+        context,
+        'Create an assignable staff role before adding a staff login.',
+      );
+      return;
+    }
+    final result = await showDialog<_CreatedStaffLogin>(
+      context: context,
+      builder: (_) => _CreateStaffUserDialog(
+        workspace: workspace,
+        roles: roles,
+      ),
+    );
+    if (result == null || !context.mounted) return;
+    ref.invalidate(accessControlOverviewProvider(workspace.businessId));
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Staff login created'),
+        content: SelectableText(
+          'Share these credentials securely with ${result.credentials.fullName.isEmpty ? result.credentials.email : result.credentials.fullName}.\n\n'
+          'User ID: ${result.credentials.userId}\n'
+          'Email: ${result.credentials.email}\n'
+          'Password: ${result.password}\n\n'
+          'The password is shown once. Ask the staff member to change it after signing in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(
+                ClipboardData(
+                  text:
+                      'User ID: ${result.credentials.userId}\n'
+                      'Email: ${result.credentials.email}\n'
+                      'Password: ${result.password}',
+                ),
+              );
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Copy credentials'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openMember(
     BuildContext context,
     WidgetRef ref,
@@ -152,6 +206,7 @@ class _AccessControlContent extends ConsumerWidget {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _MemberDialog(
+        businessId: workspace.businessId,
         member: member,
         roles: _assignableRoles,
         branches: workspace.branches,
@@ -160,6 +215,19 @@ class _AccessControlContent extends ConsumerWidget {
     if (saved == true) {
       ref.invalidate(accessControlOverviewProvider(workspace.businessId));
     }
+  }
+
+  Future<void> _viewMember(
+    BuildContext context,
+    MemberSummary member,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _MemberDetailsDialog(
+        member: member,
+        branches: workspace.branches,
+      ),
+    );
   }
 
   Future<void> _revokeMember(
@@ -200,6 +268,64 @@ class _AccessControlContent extends ConsumerWidget {
       ref.invalidate(accessControlOverviewProvider(workspace.businessId));
     } on PostgrestException catch (error) {
       if (context.mounted) _showError(context, error.message);
+    }
+  }
+
+  Future<void> _deleteStaffLogin(
+    BuildContext context,
+    WidgetRef ref,
+    MemberSummary member,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Disable staff login?'),
+        content: Text(
+          'This deletes the Supabase login for ${member.email ?? member.fullName ?? 'this staff member'}. '
+          'The login will be disabled and this business access revoked while history is retained. '
+          'Use Remove access instead if you only want to revoke this business.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete login'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(tenantRepositoryProvider).deleteStaffUser(
+        businessId: workspace.businessId,
+        userId: member.userId,
+      );
+      ref.invalidate(accessControlOverviewProvider(workspace.businessId));
+    } catch (error) {
+      if (context.mounted) _showError(context, error.toString());
+    }
+  }
+
+  Future<void> _reactivateMember(
+    BuildContext context,
+    WidgetRef ref,
+    MemberSummary member,
+  ) async {
+    try {
+      await ref.read(tenantRepositoryProvider).updateStaffUser(
+        businessId: workspace.businessId,
+        userId: member.userId,
+        roleId: member.roleId,
+        status: 'active',
+        allBranches: member.hasAllBranchAccess,
+        branchIds: member.branchIds,
+      );
+      ref.invalidate(accessControlOverviewProvider(workspace.businessId));
+    } catch (error) {
+      if (context.mounted) _showError(context, error.toString());
     }
   }
 
@@ -368,33 +494,24 @@ class _AccessControlContent extends ConsumerWidget {
                             label: const Text('New role'),
                           ),
                         if (canCreateStaff)
-                          FilledButton.icon(
-                            onPressed: () => _openInvite(context, ref),
-                            icon: const Icon(Icons.person_add_alt_1_outlined),
-                            label: const Text('Add staff user'),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: () => _openCreateUser(context, ref),
+                                icon: const Icon(Icons.key_outlined),
+                                label: const Text('Create login'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _openInvite(context, ref),
+                                icon: const Icon(Icons.mail_outline_rounded),
+                                label: const Text('Invite by code'),
+                              ),
+                            ],
                           ),
                       ],
                     ),
                 ],
-              ),
-              const SizedBox(height: 24),
-              AppPanel(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Give staff access in three steps: invite a user, choose a role such as Cashier or Manager, then assign the branches they can use. Use the pencil action on a member to change their role or branch access later.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 24),
               _SectionTitle(title: 'Roles', count: data.roles.length),
@@ -659,31 +776,55 @@ class _AccessControlContent extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      if (member.userId != currentUserId &&
-                          (canUpdateStaff || canDeleteStaff) &&
-                          canManageMember(member)) ...[
-                        const Divider(height: 20),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (canUpdateStaff)
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openMember(context, ref, member),
-                                icon: const Icon(Icons.edit_outlined),
-                                label: const Text('Edit access'),
-                              ),
-                            if (canDeleteStaff)
-                              TextButton.icon(
-                                onPressed: () =>
-                                    _revokeMember(context, ref, member),
-                                icon: const Icon(Icons.person_remove_outlined),
-                                label: const Text('Revoke access'),
-                              ),
-                          ],
-                        ),
-                      ],
+                      const Divider(height: 20),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _viewMember(context, member),
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: const Text('View'),
+                          ),
+                          if (member.userId != currentUserId &&
+                              canUpdateStaff &&
+                              canManageMember(member))
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  _openMember(context, ref, member),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Edit access'),
+                            ),
+                          if (member.userId != currentUserId &&
+                              member.status != 'active' &&
+                              canUpdateStaff &&
+                              canManageMember(member))
+                            TextButton.icon(
+                              onPressed: () =>
+                                  _reactivateMember(context, ref, member),
+                              icon: const Icon(Icons.restart_alt_rounded),
+                              label: const Text('Reactivate'),
+                            ),
+                          if (member.userId != currentUserId &&
+                              canDeleteStaff &&
+                              canManageMember(member))
+                            TextButton.icon(
+                              onPressed: () =>
+                                  _revokeMember(context, ref, member),
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Remove access'),
+                            ),
+                          if (member.userId != currentUserId &&
+                              canDeleteStaff &&
+                              canManageMember(member))
+                            TextButton.icon(
+                              onPressed: () =>
+                                  _deleteStaffLogin(context, ref, member),
+                              icon: const Icon(Icons.delete_forever_outlined),
+                              label: const Text('Delete login'),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -750,6 +891,194 @@ class _SectionTitle extends StatelessWidget {
       Text(title, style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(width: 8),
       StatusBadge(label: count.toString()),
+    ],
+  );
+}
+
+class _CreatedStaffLogin {
+  const _CreatedStaffLogin({
+    required this.credentials,
+    required this.password,
+  });
+
+  final StaffUserCredentials credentials;
+  final String password;
+}
+
+class _CreateStaffUserDialog extends ConsumerStatefulWidget {
+  const _CreateStaffUserDialog({required this.workspace, required this.roles});
+
+  final BusinessWorkspace workspace;
+  final List<RoleSummary> roles;
+
+  @override
+  ConsumerState<_CreateStaffUserDialog> createState() =>
+      _CreateStaffUserDialogState();
+}
+
+class _CreateStaffUserDialogState
+    extends ConsumerState<_CreateStaffUserDialog> {
+  final _email = TextEditingController();
+  final _fullName = TextEditingController();
+  final _password = TextEditingController();
+  late String _roleId;
+  bool _allBranches = true;
+  final Set<String> _branches = {};
+  bool _saving = false;
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _roleId = widget.roles.first.id;
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _fullName.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final email = _email.text.trim().toLowerCase();
+    final password = _password.text;
+    if (!_isValidEmail(email)) {
+      return _showError(context, 'Enter a valid email address.');
+    }
+    if (password.length < 8 || password.length > 128) {
+      return _showError(context, 'Password must be between 8 and 128 characters.');
+    }
+    if (!_allBranches && _branches.isEmpty) {
+      return _showError(context, 'Select at least one branch.');
+    }
+    setState(() => _saving = true);
+    try {
+      final credentials = await ref.read(tenantRepositoryProvider).createStaffUser(
+        businessId: widget.workspace.businessId,
+        email: email,
+        password: password,
+        fullName: _fullName.text.trim(),
+        roleId: _roleId,
+        allBranches: _allBranches,
+        branchIds: _branches.toList(),
+      );
+      if (mounted) {
+        Navigator.pop(
+          context,
+          _CreatedStaffLogin(credentials: credentials, password: password),
+        );
+      }
+    } catch (error) {
+      if (mounted) _showError(context, error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Create staff login'),
+    content: SizedBox(
+      width: 520,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Create a Supabase account immediately without sending an invitation. '
+              'The password is shown once after creation.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _fullName,
+              enabled: !_saving,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(labelText: 'Full name'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _email,
+              enabled: !_saving,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(labelText: 'Login email'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _password,
+              enabled: !_saving,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Temporary password',
+                helperText: 'Minimum 8 characters. Share it securely, then ask the user to change it.',
+                suffixIcon: IconButton(
+                  onPressed: () => setState(
+                    () => _obscurePassword = !_obscurePassword,
+                  ),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _roleId,
+              decoration: const InputDecoration(labelText: 'Role'),
+              items: widget.roles
+                  .map(
+                    (role) => DropdownMenuItem(
+                      value: role.id,
+                      child: Text(role.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _roleId = value!),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _allBranches,
+              title: const Text('Access all branches'),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _allBranches = value),
+            ),
+            if (!_allBranches)
+              for (final branch in widget.workspace.branches)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _branches.contains(branch.id),
+                  title: Text(branch.name),
+                  subtitle: Text(branch.code),
+                  onChanged: _saving
+                      ? null
+                      : (checked) => setState(() {
+                          checked == true
+                              ? _branches.add(branch.id)
+                              : _branches.remove(branch.id);
+                        }),
+                ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Creating…' : 'Create login'),
+      ),
     ],
   );
 }
@@ -1018,10 +1347,12 @@ class _InviteDialogState extends ConsumerState<_InviteDialog> {
 
 class _MemberDialog extends ConsumerStatefulWidget {
   const _MemberDialog({
+    required this.businessId,
     required this.member,
     required this.roles,
     required this.branches,
   });
+  final String businessId;
   final MemberSummary member;
   final List<RoleSummary> roles;
   final List<BusinessBranch> branches;
@@ -1029,7 +1360,84 @@ class _MemberDialog extends ConsumerStatefulWidget {
   ConsumerState<_MemberDialog> createState() => _MemberDialogState();
 }
 
+class _MemberDetailsDialog extends StatelessWidget {
+  const _MemberDetailsDialog({required this.member, required this.branches});
+
+  final MemberSummary member;
+  final List<BusinessBranch> branches;
+
+  @override
+  Widget build(BuildContext context) {
+    final assignedBranches = member.hasAllBranchAccess
+        ? 'All branches'
+        : branches
+              .where((branch) => member.branchIds.contains(branch.id))
+              .map((branch) => branch.name)
+              .join(', ');
+    return AlertDialog(
+      title: const Text('User details'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailRow(
+              label: 'Name',
+              value: member.fullName?.trim().isNotEmpty == true
+                  ? member.fullName!
+                  : 'Not set',
+            ),
+            _DetailRow(label: 'Email', value: member.email ?? 'Not available'),
+            _DetailRow(label: 'Role', value: member.roleName),
+            _DetailRow(label: 'Status', value: member.status),
+            _DetailRow(label: 'Branch access', value: assignedBranches),
+            _DetailRow(label: 'User ID', value: member.userId),
+            _DetailRow(label: 'Membership ID', value: member.id),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(child: SelectableText(value)),
+      ],
+    ),
+  );
+}
+
 class _MemberDialogState extends ConsumerState<_MemberDialog> {
+  late final TextEditingController _email;
+  late final TextEditingController _fullName;
+  final _password = TextEditingController();
   late String _roleId;
   late String _status;
   late bool _allBranches;
@@ -1039,6 +1447,8 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
   @override
   void initState() {
     super.initState();
+    _email = TextEditingController(text: widget.member.email ?? '');
+    _fullName = TextEditingController(text: widget.member.fullName ?? '');
     _roleId = widget.roles
         .firstWhere((role) => role.name == widget.member.roleName)
         .id;
@@ -1047,24 +1457,36 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
     _branches = {...widget.member.branchIds};
   }
 
+  @override
+  void dispose() {
+    _email.dispose();
+    _fullName.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     if (!_allBranches && _branches.isEmpty) {
       return _showError(context, 'Select at least one branch.');
     }
     setState(() => _saving = true);
     try {
-      await ref
-          .read(tenantRepositoryProvider)
-          .updateMembership(
-            membershipId: widget.member.id,
-            roleId: _roleId,
-            status: _status,
-            allBranches: _allBranches,
-            branchIds: _branches.toList(),
-          );
+      await ref.read(tenantRepositoryProvider).updateStaffUser(
+        businessId: widget.businessId,
+        userId: widget.member.userId,
+        email: _email.text.trim().isEmpty
+            ? null
+            : _email.text.trim().toLowerCase(),
+        fullName: _fullName.text.trim(),
+        password: _password.text.trim().isEmpty ? null : _password.text,
+        roleId: _roleId,
+        status: _status,
+        allBranches: _allBranches,
+        branchIds: _branches.toList(),
+      );
       if (mounted) Navigator.pop(context, true);
-    } on PostgrestException catch (error) {
-      if (mounted) _showError(context, error.message);
+    } catch (error) {
+      if (mounted) _showError(context, error.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1079,6 +1501,32 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            TextField(
+              controller: _fullName,
+              enabled: !_saving,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(labelText: 'Full name'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _email,
+              enabled: !_saving,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(labelText: 'Login email'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _password,
+              enabled: !_saving,
+              obscureText: true,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'New password (optional)',
+                helperText: 'Leave empty to keep the current password.',
+              ),
+            ),
+            const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               initialValue: _roleId,
               decoration: const InputDecoration(labelText: 'Role'),
@@ -1132,7 +1580,7 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
       ),
       FilledButton(
         onPressed: _saving ? null : _save,
-        child: Text(_saving ? 'Saving…' : 'Save access'),
+        child: Text(_saving ? 'Saving…' : 'Save user'),
       ),
     ],
   );

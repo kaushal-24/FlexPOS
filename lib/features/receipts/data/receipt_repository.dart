@@ -43,7 +43,8 @@ class ReceiptRepository implements SupabaseRepositoryContract {
           .from('businesses')
           .select(
             'id,name,tax_registration_number,receipt_footer,receipt_template,'
-            'receipt_logo_path,receipt_qr_payload,receipt_show_logo,receipt_show_qr',
+            'receipt_logo_path,receipt_qr_payload,receipt_show_logo,receipt_show_qr,'
+            'receipt_paper_width',
           )
           .eq('id', businessId)
           .single(),

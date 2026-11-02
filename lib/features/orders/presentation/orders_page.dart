@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flexpos/core/utils/money.dart';
+import 'package:flexpos/core/utils/csv_export.dart';
+import 'package:flexpos/core/utils/pdf_export.dart';
 import 'package:flexpos/core/security/crud_permissions.dart';
 import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
@@ -161,12 +163,28 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       ),
                     ],
                   ),
-                  if (canCreateSale)
-                    FilledButton.icon(
-                      onPressed: () => context.go('/pos'),
-                      icon: const Icon(Icons.add_shopping_cart_rounded),
-                      label: const Text('New sale'),
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _exportSales(items),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('Export CSV'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _exportSalesPdf(items),
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('Export PDF'),
+                      ),
+                      if (canCreateSale)
+                        FilledButton.icon(
+                          onPressed: () => context.go('/pos'),
+                          icon: const Icon(Icons.add_shopping_cart_rounded),
+                          label: const Text('New sale'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -567,6 +585,81 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
         );
       },
     );
+  }
+
+  Future<void> _exportSales(List<SaleSummary> items) async {
+    try {
+      final path = await saveCsvExport(
+        fileName: 'flexpos-sales.csv',
+        rows: [
+          const [
+            'Invoice',
+            'Completed at',
+            'Grand total (minor)',
+            'Refunded total (minor)',
+            'Net total (minor)',
+            'Payment status',
+            'Sale status',
+          ],
+          for (final sale in items)
+            [
+              sale.invoiceNumber,
+              sale.completedAt.toIso8601String(),
+              sale.grandTotalMinor,
+              sale.refundedTotalMinor,
+              sale.netTotalMinor,
+              sale.paymentStatus,
+              sale.status,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sales CSV exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not export sales: $error')));
+    }
+  }
+
+  Future<void> _exportSalesPdf(List<SaleSummary> items) async {
+    try {
+      final path = await savePdfExport(
+        fileName: 'flexpos-sales.pdf',
+        title: 'FlexPOS sales',
+        headers: const [
+          'Invoice',
+          'Completed at',
+          'Grand total (minor)',
+          'Refunded total (minor)',
+          'Net total (minor)',
+          'Payment status',
+          'Sale status',
+        ],
+        rows: [
+          for (final sale in items)
+            [
+              sale.invoiceNumber,
+              sale.completedAt.toIso8601String(),
+              sale.grandTotalMinor,
+              sale.refundedTotalMinor,
+              sale.netTotalMinor,
+              sale.paymentStatus,
+              sale.status,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sales PDF exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not export sales: $error')));
+    }
   }
 
   Future<void> _showTaxInvoice(

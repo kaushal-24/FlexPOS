@@ -1,4 +1,6 @@
 import 'package:flexpos/core/utils/money.dart';
+import 'package:flexpos/core/utils/csv_export.dart';
+import 'package:flexpos/core/utils/pdf_export.dart';
 import 'package:flexpos/core/security/crud_permissions.dart';
 import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
@@ -45,11 +47,14 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         message: 'A business workspace is required to view inventory.',
       );
     }
-    if (!workspace.canRead('inventory')) {
-      return const EmptyState(
+    final isCashier = workspace.roleName.trim().toLowerCase() == 'cashier';
+    if (isCashier || !workspace.canRead('inventory')) {
+      return EmptyState(
         icon: Icons.lock_outline_rounded,
         title: 'Inventory is restricted',
-        message: 'Your role does not include permission to view inventory.',
+        message: isCashier
+            ? 'Cashiers can see product availability in POS. Inventory details are limited to stock-management roles.'
+            : 'Your role does not include permission to view inventory.',
       );
     }
     if (!workspace.isFeatureEnabled(FeatureCodes.inventory)) {
@@ -152,9 +157,31 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 96),
             children: [
-              Text(
-                'Inventory',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'Inventory',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _exportInventory(data),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('Export CSV'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _exportInventoryPdf(data),
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('Export PDF'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
@@ -530,6 +557,97 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         },
       ),
     );
+  }
+
+  Future<void> _exportInventory(CatalogSnapshot data) async {
+    try {
+      final products = data.products
+          .where((item) => item.trackInventory)
+          .toList(growable: false);
+      final path = await saveCsvExport(
+        fileName: 'flexpos-inventory.csv',
+        rows: [
+          const [
+            'Product',
+            'SKU',
+            'Tracked',
+            'On hand',
+            'Reserved',
+            'Available',
+            'Reorder point',
+          ],
+          for (final product in products) _inventoryExportRow(data, product),
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Inventory CSV exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export inventory: $error')),
+      );
+    }
+  }
+
+  List<Object?> _inventoryExportRow(
+    CatalogSnapshot data,
+    CatalogProduct product,
+  ) {
+    final balances = data.balances.where(
+      (balance) => balance.variantId == product.variantId,
+    );
+    final onHand = balances.fold<double>(
+      0,
+      (total, balance) => total + balance.quantity,
+    );
+    final reserved = balances.fold<double>(
+      0,
+      (total, balance) => total + balance.reserved,
+    );
+    return [
+      product.name,
+      product.sku,
+      product.trackInventory,
+      onHand,
+      reserved,
+      onHand - reserved,
+      data.reorderPointFor(product.variantId),
+    ];
+  }
+
+  Future<void> _exportInventoryPdf(CatalogSnapshot data) async {
+    try {
+      final products = data.products
+          .where((item) => item.trackInventory)
+          .toList(growable: false);
+      final path = await savePdfExport(
+        fileName: 'flexpos-inventory.pdf',
+        title: 'FlexPOS inventory',
+        headers: const [
+          'Product',
+          'SKU',
+          'Tracked',
+          'On hand',
+          'Reserved',
+          'Available',
+          'Reorder point',
+        ],
+        rows: [
+          for (final product in products) _inventoryExportRow(data, product),
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Inventory PDF exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export inventory: $error')),
+      );
+    }
   }
 
   Future<void> _adjust(

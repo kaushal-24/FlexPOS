@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flexpos/core/utils/csv_export.dart';
 import 'package:flexpos/core/utils/money.dart';
+import 'package:flexpos/core/utils/pdf_export.dart';
 import 'package:flexpos/core/security/crud_permissions.dart';
 import 'package:flexpos/core/widgets/app_panel.dart';
 import 'package:flexpos/core/widgets/data_page_skeleton.dart';
@@ -90,9 +92,31 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 96),
             children: [
-              Text(
-                'Products',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'Products',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _exportProductsCsv(data.products),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('Export CSV'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _exportProductsPdf(data.products),
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('Export PDF'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
@@ -390,6 +414,95 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportProductsPdf(List<CatalogProduct> products) async {
+    try {
+      final path = await savePdfExport(
+        fileName: 'flexpos-products.pdf',
+        title: 'FlexPOS products',
+        headers: const [
+          'Product',
+          'Variant',
+          'SKU',
+          'Barcode(s)',
+          'Selling price (minor)',
+          'Cost price (minor)',
+          'Tax (bps)',
+          'Category',
+          'Tracked',
+          'POS favorite',
+        ],
+        rows: [
+          for (final product in products)
+            [
+              product.name,
+              product.variantName,
+              product.sku,
+              product.barcodes.join(' | '),
+              product.priceMinor,
+              product.costMinor,
+              product.taxRateBasisPoints,
+              product.categoryName,
+              product.trackInventory,
+              product.isFavorite,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Products PDF exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export products: $error')),
+      );
+    }
+  }
+
+  Future<void> _exportProductsCsv(List<CatalogProduct> products) async {
+    try {
+      final path = await saveCsvExport(
+        fileName: 'flexpos-products.csv',
+        rows: [
+          const [
+            'Product',
+            'Variant',
+            'SKU',
+            'Barcode(s)',
+            'Selling price (minor)',
+            'Cost price (minor)',
+            'Tax (bps)',
+            'Category',
+            'Tracked',
+            'POS favorite',
+          ],
+          for (final product in products)
+            [
+              product.name,
+              product.variantName,
+              product.sku,
+              product.barcodes.join(' | '),
+              product.priceMinor,
+              product.costMinor,
+              product.taxRateBasisPoints,
+              product.categoryName,
+              product.trackInventory,
+              product.isFavorite,
+            ],
+        ],
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Products CSV exported.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export products: $error')),
+      );
+    }
   }
 
   Future<void> _archiveProduct(

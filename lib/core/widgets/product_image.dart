@@ -113,6 +113,7 @@ class _ProductImageState extends ConsumerState<ProductImage> {
               : Image.network(
                   _url!,
                   fit: widget.fit,
+                  filterQuality: FilterQuality.high,
                   errorBuilder: (_, _, _) => Icon(
                     Icons.broken_image_outlined,
                     size: widget.iconSize,
