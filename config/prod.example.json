@@ -1,0 +1,5 @@
+{
+  "APP_NAME": "FlexPOS",
+  "SUPABASE_URL": "https://gpbsblokhpydtpgxpwrg.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_replace_with_production_key"
+}
