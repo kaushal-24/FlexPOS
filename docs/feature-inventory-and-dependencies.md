@@ -25,7 +25,7 @@ The only backend in scope is Supabase project `flexpos-2`
 | Purchasing | Supplier profiles, multi-line purchase orders, authoritative totals, partial/final goods receipts, idempotency, over-receipt prevention, stock increases, average-cost updates, requisitions and approvals, supplier invoices, landed-cost allocation, supplier returns, payment tracking, and payable statements. |
 | Registers | Register creation, shift open/close, opening/closing cash, blind count, cash in/out with reasons, X/Z reports, over/short reconciliation, and POS shift linkage. |
 | Accounting/reporting slice | Expense categories, idempotent expense entry, immutable reversal, customer ledger, gross/net sales, tax, expense, gross profit, settled-payment, daily-series, receivable, stock, retention, forecast, supplier, and register-performance reporting. |
-| Receipts | Reconstruction from persisted sales, business-configured invoice prefix/tax ID/footer, classic/minimal/detailed template setting, private business logo assets, QR payload storage/rendering, transparent FlexPOS branding in PDF/preview, adaptive PDF generation, A4 and 58/80 mm output, preview, save/download, system print/share, and order-history reprint. |
+| Receipts | Reconstruction from persisted sales, business-configured invoice prefix/tax ID/footer, classic/minimal/detailed template setting, private business logo assets, QR payload storage/rendering, transparent FlexPOS branding in PDF/preview, adaptive PDF generation, A4 and 58/80 mm output, preview, save/download, system print, and order-history reprint. |
 
 Primary UI routes are `/dashboard`, `/pos`, `/products`, `/catalog-management`, `/inventory`,
 `/orders`, `/customers`, `/purchases`, `/expenses`, `/reports`, `/registers`,
@@ -79,7 +79,7 @@ future package resolution will select the same transitive graph.
 | `shared_preferences` | `^2.5.6` | Local non-sensitive preferences such as theme/workspace selection; it is not an encrypted offline transaction store. |
 | `intl` | `^0.20.3` | Locale-aware dates, numbers, and currency display; no network service. |
 | `pdf` | `^3.13.1` | In-process receipt/invoice PDF generation; no network service. |
-| `printing` | `^5.15.1` | Platform print dialogs, preview, and PDF sharing; behavior depends on installed OS print/share services. |
+| `printing` | `^5.15.1` | Platform print dialogs, preview, and PDF generation; behavior depends on installed OS print services. |
 | `file_picker` | `^13.1.0` | User-granted file selection for receipt PDFs and catalog CSV/image import/export. |
 | `mobile_scanner` | `^7.4.2` | Camera barcode/QR capture on Android, iOS, macOS, and supported web browsers; requires camera permission and a device/browser camera. |
 | `qr_flutter` | `^4.1.0` | In-app UPI payment QR rendering; the payload contains the configured UPI address, amount, currency, and FlexPOS transaction reference. |

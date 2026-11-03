@@ -25,7 +25,7 @@ class BusinessesPage extends ConsumerWidget {
     if (saved == true) ref.invalidate(workspacesProvider);
   }
 
-  Future<void> _archiveBusiness(
+  Future<void> _deleteBusiness(
     BuildContext context,
     WidgetRef ref,
     BusinessWorkspace workspace,
@@ -33,9 +33,9 @@ class BusinessesPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive business?'),
+        title: const Text('Delete business?'),
         content: Text(
-          'Archive “${workspace.businessName}”? It will disappear from your active business list and cannot receive new sales.',
+          'Delete “${workspace.businessName}”? It will be removed from your active business list and cannot receive new sales.',
         ),
         actions: [
           TextButton(
@@ -44,7 +44,7 @@ class BusinessesPage extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -53,17 +53,17 @@ class BusinessesPage extends ConsumerWidget {
     try {
       await ref
           .read(tenantRepositoryProvider)
-          .archiveBusiness(workspace.businessId);
+          .deleteBusiness(workspace.businessId);
       ref.invalidate(workspacesProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Business archived.')));
+            .showSnackBar(const SnackBar(content: Text('Business deleted.')));
       }
     } on PostgrestException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not archive business: ${error.message}'),
+            content: Text('Could not delete business: ${error.message}'),
           ),
         );
       }
@@ -191,9 +191,9 @@ class BusinessesPage extends ConsumerWidget {
                           ),
                           TextButton.icon(
                             onPressed: () =>
-                                _archiveBusiness(context, ref, workspace),
-                            icon: const Icon(Icons.archive_outlined),
-                            label: const Text('Archive'),
+                                _deleteBusiness(context, ref, workspace),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Delete'),
                           ),
                         ],
                       ),

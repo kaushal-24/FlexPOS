@@ -155,6 +155,63 @@ class _PosPageState extends ConsumerState<PosPage> {
     );
   }
 
+  WarehouseOption _bestPosWarehouse(
+    CatalogSnapshot data,
+    Iterable<WarehouseOption> source,
+  ) {
+    return data.bestWarehouse(candidates: source) ?? data.warehouses.first;
+  }
+
+  WarehouseOption _selectPosWarehouse(
+    CatalogSnapshot data,
+    RegisterOperationsSnapshot registerData,
+  ) {
+    final savedWarehouse = data.warehouses
+        .where((item) => item.id == _warehouseId)
+        .firstOrNull;
+
+    // POS no longer exposes a warehouse selector. Prefer the warehouse tied
+    // to the cashier's open shift, then choose the warehouse with the broadest
+    // real stock coverage instead of the alphabetically first empty warehouse.
+    final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
+    final preferredShift = registerData.openShifts
+        .where((shift) => shift.id == _shiftId)
+        .firstOrNull ??
+        registerData.openShifts
+            .where((shift) => shift.openedBy == currentUserId)
+            .firstOrNull;
+    final branchWarehouses = preferredShift == null
+        ? const <WarehouseOption>[]
+        : data.warehouses
+              .where((warehouse) => warehouse.branchId == preferredShift.branchId)
+              .toList(growable: false);
+    if (branchWarehouses.isNotEmpty) {
+      final branchWarehouse = _bestPosWarehouse(data, branchWarehouses);
+      final branchCoverage = data.products.fold(
+        0,
+        (count, product) =>
+            count +
+            (product.trackInventory &&
+                    data.stockForWarehouse(product.variantId, branchWarehouse.id) >
+                        0
+                ? 1
+                : 0),
+      );
+      if (branchCoverage > 0) return branchWarehouse;
+    }
+    if (savedWarehouse != null) {
+      final hasUsableStock = data.products.any(
+        (product) =>
+            product.trackInventory &&
+            data.stockForWarehouse(product.variantId, savedWarehouse.id) > 0,
+      );
+      // Keep a valid in-session selection when no shift branch has stock, but
+      // recover automatically from stale empty warehouse IDs.
+      if (hasUsableStock) return savedWarehouse;
+    }
+    return _bestPosWarehouse(data, data.warehouses);
+  }
+
   Widget _buildRegister(
     BuildContext context,
     BusinessWorkspace workspace,
@@ -173,10 +230,7 @@ class _PosPageState extends ConsumerState<PosPage> {
         message: 'Ask an administrator to assign inventory to this branch before taking a sale.',
       );
     }
-    final selectedWarehouse =
-        data.warehouses.any((item) => item.id == _warehouseId)
-        ? data.warehouses.firstWhere((item) => item.id == _warehouseId)
-        : data.warehouses.first;
+    final selectedWarehouse = _selectPosWarehouse(data, registerData);
     _warehouseId = selectedWarehouse.id;
     final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
     final canManageRegisters = workspace.canUpdate('registers');
@@ -291,6 +345,9 @@ class _PosPageState extends ConsumerState<PosPage> {
               data: data,
               warehouseId: selectedWarehouse.id,
               currencyCode: workspace.currencyCode,
+              showInventoryDetails:
+                  workspace.canRead('inventory') &&
+                  workspace.roleName.trim().toLowerCase() != 'cashier',
               canCreateCustomItem: workspace.permissionCodes.contains(
                 'sales.custom_item',
               ),
@@ -3152,6 +3209,7 @@ class _CatalogPane extends StatelessWidget {
     required this.data,
     required this.warehouseId,
     required this.currencyCode,
+    required this.showInventoryDetails,
     required this.canCreateCustomItem,
     required this.searchController,
     required this.searchFocusNode,
@@ -3176,6 +3234,7 @@ class _CatalogPane extends StatelessWidget {
   final CatalogSnapshot data;
   final String warehouseId;
   final String currencyCode;
+  final bool showInventoryDetails;
   final bool canCreateCustomItem;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -3363,9 +3422,25 @@ class _CatalogPane extends StatelessWidget {
                       warehouseId,
                     );
                     final outOfStock = product.trackInventory && stock < 1;
+                    final balance = data.balances
+                        .where(
+                          (item) =>
+                              item.variantId == product.variantId &&
+                              item.warehouseId == warehouseId,
+                        )
+                        .firstOrNull;
+                    final threshold = balance?.reorderPoint ?? 0;
+                    final lowStock =
+                        showInventoryDetails &&
+                        product.trackInventory &&
+                        !outOfStock &&
+                        threshold > 0 &&
+                        stock <= threshold;
                     final available = !outOfStock;
                     final statusColor = outOfStock
                         ? Theme.of(context).colorScheme.error
+                        : lowStock
+                        ? Colors.orange.shade700
                         : Theme.of(context).colorScheme.primary;
                     final panel = AppPanel(
                       onTap: available ? () => addProduct(product) : null,
@@ -3417,7 +3492,10 @@ class _CatalogPane extends StatelessWidget {
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
-                              if (product.trackInventory)
+                              if (product.trackInventory &&
+                                  (showInventoryDetails
+                                      ? (outOfStock || lowStock)
+                                      : true))
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 7,
@@ -3433,6 +3511,8 @@ class _CatalogPane extends StatelessWidget {
                                       Icon(
                                         outOfStock
                                             ? Icons.block_outlined
+                                            : lowStock
+                                            ? Icons.warning_amber_rounded
                                             : Icons.check_circle_outline,
                                         size: 14,
                                         color: statusColor,
@@ -3441,6 +3521,8 @@ class _CatalogPane extends StatelessWidget {
                                       Text(
                                         outOfStock
                                             ? 'Out of stock'
+                                            : lowStock
+                                            ? 'Low stock'
                                             : 'In stock',
                                         style: Theme.of(context)
                                             .textTheme
@@ -3467,10 +3549,12 @@ class _CatalogPane extends StatelessWidget {
                               ),
                               Text(
                                 product.trackInventory
-                                    ? (outOfStock ? 'Out of stock' : 'In stock')
+                                    ? showInventoryDetails
+                                        ? stock.toStringAsFixed(0)
+                                        : (outOfStock ? 'Out of stock' : 'In stock')
                                     : 'Service',
                                 style: TextStyle(
-                                  color: outOfStock
+                                  color: outOfStock || lowStock
                                       ? statusColor
                                       : Theme.of(context).colorScheme.primary,
                                 ),
@@ -3480,7 +3564,7 @@ class _CatalogPane extends StatelessWidget {
                         ],
                       ),
                     );
-                    if (!outOfStock) return panel;
+                    if (!outOfStock && !lowStock) return panel;
                     return DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(

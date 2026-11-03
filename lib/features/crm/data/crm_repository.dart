@@ -188,7 +188,7 @@ class CrmRepository implements SupabaseRepositoryContract {
         .eq('business_id', businessId);
   }
 
-  Future<void> archiveLead({
+  Future<void> deleteLead({
     required String id,
     required String businessId,
   }) async {
@@ -278,7 +278,7 @@ class CrmRepository implements SupabaseRepositoryContract {
         .eq('business_id', businessId);
   }
 
-  Future<void> archiveOpportunity({
+  Future<void> deleteOpportunity({
     required String id,
     required String businessId,
   }) async {
@@ -378,7 +378,7 @@ class CrmRepository implements SupabaseRepositoryContract {
         .eq('business_id', businessId);
   }
 
-  Future<void> archiveQuotation({
+  Future<void> deleteQuotation({
     required String id,
     required String businessId,
   }) async {

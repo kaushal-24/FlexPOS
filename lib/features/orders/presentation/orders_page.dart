@@ -187,25 +187,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              AppPanel(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Completed sales are immutable financial records. Use returns, exchanges, payment reconciliation, or receipt actions to manage a sale; deletion is intentionally blocked to preserve audit history.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 20),
               _OrderFilters(
                 status: _status,
@@ -1813,7 +1794,9 @@ class _ExchangeSaleDialogState extends State<_ExchangeSaleDialog> {
       for (final item in widget.returnableItems)
         item.id: TextEditingController(text: '0'),
     };
-    _warehouseId = widget.warehouses.first.id;
+    _warehouseId =
+        widget.catalog.bestWarehouse(candidates: widget.warehouses)?.id ??
+        widget.warehouses.first.id;
     _shiftId = widget.shifts.first.id;
     _selectedVariantId = _availableProducts.firstOrNull?.variantId;
   }

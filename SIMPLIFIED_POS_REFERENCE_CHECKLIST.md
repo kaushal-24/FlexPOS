@@ -152,7 +152,7 @@ For each item below, choose one:
 
 ## 6. Products and catalog
 
-- [ ] Keep product/service create, view, edit, archive, and restore workflow.
+- [ ] Keep product/service create, view, edit, delete, and restore workflow.
 - [ ] Keep product name, SKU, selling price, cost, tax, and active status.
 - [ ] Keep one or more product images with visible thumbnails.
 - [ ] Keep categories.
@@ -207,7 +207,7 @@ For each item below, choose one:
 
 ## 9. Customers and CRM
 
-- [ ] Keep customer create, view, edit, archive, and search.
+- [ ] Keep customer create, view, edit, delete, and search.
 - [ ] Keep phone/email/address fields only when operationally useful.
 - [ ] Keep purchase history.
 - [ ] Keep customer balance/dues only if credit sales remain.
@@ -222,7 +222,7 @@ For each item below, choose one:
 
 ## 10. Purchasing and suppliers
 
-- [ ] Keep supplier create, edit, archive, and search.
+- [ ] Keep supplier create, edit, delete, and search.
 - [ ] Keep purchase order only if formal ordering is needed.
 - [ ] Keep goods receiving and stock increase.
 - [ ] Keep supplier invoice tracking only if payables are used.

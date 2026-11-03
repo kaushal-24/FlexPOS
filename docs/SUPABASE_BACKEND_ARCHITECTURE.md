@@ -16,7 +16,7 @@ The Flutter client resolves CRUD capabilities from the role's scoped permission
 codes (`<resource>.view` for reads and `<resource>.manage` for backwards-
 compatible full writes, with narrower create/update/delete grants supported).
 Unauthorized controls are hidden or disabled, while RLS remains the final
-enforcement boundary. Master data uses reversible archive mutations where
+enforcement boundary. Master data uses tenant-safe delete/deactivation mutations where
 history is referenced by sales or purchasing records; workflow domains use
 audited status transitions instead of destructive deletes.
 

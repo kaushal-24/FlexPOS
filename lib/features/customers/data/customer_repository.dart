@@ -182,9 +182,9 @@ class CustomerRepository implements SupabaseRepositoryContract {
         .eq('id', customerId);
   }
 
-  /// Delete is implemented as a tenant-safe archive so historical sales and
-  /// customer-ledger references remain intact.
-  Future<void> archiveCustomer({
+  /// Deletes a customer from active lists while preserving historical sales
+  /// and customer-ledger references.
+  Future<void> deleteCustomer({
     required String businessId,
     required String customerId,
   }) async {
@@ -198,7 +198,7 @@ class CustomerRepository implements SupabaseRepositoryContract {
         .eq('id', customerId);
   }
 
-  Future<void> archiveCustomerGroup({
+  Future<void> deleteCustomerGroup({
     required String businessId,
     required String groupId,
   }) async {

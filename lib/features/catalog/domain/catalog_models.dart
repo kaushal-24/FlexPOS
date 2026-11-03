@@ -468,6 +468,65 @@ class CatalogSnapshot {
   double reorderPointFor(String variantId) => balances
       .where((balance) => balance.variantId == variantId)
       .fold(0, (total, balance) => total + balance.reorderPoint);
+
+  /// Selects the warehouse that actually contains the most usable stock.
+  ///
+  /// Warehouse rows are business-scoped and may include empty branch
+  /// locations (for example, a newly-created backroom). Using the first row
+  /// alphabetically therefore makes a stocked SKU appear as zero in POS and
+  /// exchange/purchase dialogs. Callers can optionally pass a branch or a
+  /// variant to keep the choice local to their workflow.
+  WarehouseOption? bestWarehouse({
+    Iterable<WarehouseOption>? candidates,
+    String? preferredBranchId,
+    String? variantId,
+  }) {
+    final available = (candidates ?? warehouses).toList(growable: false);
+    if (available.isEmpty) return null;
+    final branchCandidates = preferredBranchId == null
+        ? available
+        : available
+              .where((warehouse) => warehouse.branchId == preferredBranchId)
+              .toList(growable: false);
+    final ranked = (branchCandidates.isEmpty ? available : branchCandidates)
+        .toList(growable: true);
+
+    double usable(WarehouseOption warehouse) {
+      if (variantId != null) {
+        return stockForWarehouse(variantId, warehouse.id);
+      }
+      return products.fold(
+        0.0,
+        (total, product) =>
+            total +
+            (product.trackInventory
+                ? stockForWarehouse(product.variantId, warehouse.id)
+                : 0),
+      );
+    }
+
+    int coverage(WarehouseOption warehouse) {
+      if (variantId != null) return usable(warehouse) > 0 ? 1 : 0;
+      return products.fold(
+        0,
+        (count, product) =>
+            count +
+            (product.trackInventory &&
+                    stockForWarehouse(product.variantId, warehouse.id) > 0
+                ? 1
+                : 0),
+      );
+    }
+
+    ranked.sort((left, right) {
+      final coverageComparison = coverage(right).compareTo(coverage(left));
+      if (coverageComparison != 0) return coverageComparison;
+      final usableComparison = usable(right).compareTo(usable(left));
+      if (usableComparison != 0) return usableComparison;
+      return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+    });
+    return ranked.first;
+  }
 }
 
 DateTime? _dateTime(Object? value) {

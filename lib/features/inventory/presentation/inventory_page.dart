@@ -943,6 +943,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       context: context,
       builder: (_) => _InventoryStocktakeStartDialog(
         workspace: workspace,
+        snapshot: snapshot,
         warehouses: snapshot.warehouses,
         repository: repository,
       ),
@@ -1018,7 +1019,9 @@ class _InventoryThresholdDialogState extends State<_InventoryThresholdDialog> {
   @override
   void initState() {
     super.initState();
-    _warehouseId = widget.snapshot.warehouses.first.id;
+    _warehouseId =
+        widget.snapshot.bestWarehouse(variantId: widget.product.variantId)?.id ??
+        widget.snapshot.warehouses.first.id;
     _thresholdController = TextEditingController(
       text: _formatThreshold(_currentThreshold),
     );
@@ -1454,7 +1457,9 @@ class _SerializedInventoryDialogState
   final _formKey = GlobalKey<FormState>();
   final _identifiers = TextEditingController();
   late String _variantId = widget.products.first.variantId;
-  late String _warehouseId = widget.snapshot.warehouses.first.id;
+  late String _warehouseId =
+      widget.snapshot.bestWarehouse(variantId: widget.products.first.variantId)?.id ??
+      widget.snapshot.warehouses.first.id;
   late String _trackingMode = widget.products.first.trackingMode == 'none'
       ? 'serial'
       : widget.products.first.trackingMode;
@@ -1514,6 +1519,9 @@ class _SerializedInventoryDialogState
                   );
                   setState(() {
                     _variantId = value;
+                    _warehouseId =
+                        widget.snapshot.bestWarehouse(variantId: value)?.id ??
+                        _warehouseId;
                     _trackingMode = product.trackingMode == 'none'
                         ? 'serial'
                         : product.trackingMode;
@@ -1683,7 +1691,9 @@ class _StockLossDialogState extends State<_StockLossDialog> {
   final _reason = TextEditingController();
   final _notes = TextEditingController();
   late String _variantId = widget.products.first.variantId;
-  late String _warehouseId = widget.snapshot.warehouses.first.id;
+  late String _warehouseId =
+      widget.snapshot.bestWarehouse(variantId: widget.products.first.variantId)?.id ??
+      widget.snapshot.warehouses.first.id;
   String _lossType = 'damage';
   bool _saving = false;
   String? _error;
@@ -1757,6 +1767,9 @@ class _StockLossDialogState extends State<_StockLossDialog> {
                     .toList(),
                 onSelected: (value) => setState(() {
                   _variantId = value ?? _variantId;
+                  _warehouseId =
+                      widget.snapshot.bestWarehouse(variantId: _variantId)?.id ??
+                      _warehouseId;
                   _selectedSerializedUnits.clear();
                   _quantity.clear();
                 }),
@@ -1941,8 +1954,20 @@ class _InventoryTransferDialogState extends State<_InventoryTransferDialog> {
   final _reason = TextEditingController();
   final _notes = TextEditingController();
   late String _variantId = widget.products.first.variantId;
-  late String _sourceWarehouseId = widget.snapshot.warehouses.first.id;
-  late String _destinationWarehouseId = widget.snapshot.warehouses[1].id;
+  late String _sourceWarehouseId =
+      widget.snapshot.bestWarehouse(variantId: widget.products.first.variantId)?.id ??
+      widget.snapshot.warehouses.first.id;
+  late String _destinationWarehouseId = widget.snapshot.warehouses
+      .firstWhere(
+        (warehouse) =>
+            warehouse.id !=
+            (widget.snapshot
+                    .bestWarehouse(variantId: widget.products.first.variantId)
+                    ?.id ??
+                widget.snapshot.warehouses.first.id),
+        orElse: () => widget.snapshot.warehouses[1],
+      )
+      .id;
   final Set<String> _selectedSerializedUnits = {};
   bool _saving = false;
   String? _error;
@@ -2005,6 +2030,9 @@ class _InventoryTransferDialogState extends State<_InventoryTransferDialog> {
                     .toList(),
                 onSelected: (value) => setState(() {
                   _variantId = value ?? _variantId;
+                  _sourceWarehouseId =
+                      widget.snapshot.bestWarehouse(variantId: _variantId)?.id ??
+                      _sourceWarehouseId;
                   _selectedSerializedUnits.clear();
                   _quantity.clear();
                 }),
@@ -2235,7 +2263,9 @@ class _InventoryAdjustmentDialogState
   final _quantity = TextEditingController();
   final _reason = TextEditingController();
   late String _variantId = widget.products.first.variantId;
-  late String _warehouseId = widget.snapshot.warehouses.first.id;
+  late String _warehouseId =
+      widget.snapshot.bestWarehouse(variantId: widget.products.first.variantId)?.id ??
+      widget.snapshot.warehouses.first.id;
   bool _saving = false;
   String? _error;
 
@@ -2274,8 +2304,15 @@ class _InventoryAdjustmentDialogState
                       ),
                     )
                     .toList(),
-                onSelected: (value) =>
-                    setState(() => _variantId = value ?? _variantId),
+                onSelected: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _variantId = value;
+                    _warehouseId =
+                        widget.snapshot.bestWarehouse(variantId: value)?.id ??
+                        _warehouseId;
+                  });
+                },
               ),
               const SizedBox(height: 12),
               DropdownMenu<String>(
@@ -2380,11 +2417,13 @@ class _InventoryAdjustmentDialogState
 class _InventoryStocktakeStartDialog extends StatefulWidget {
   const _InventoryStocktakeStartDialog({
     required this.workspace,
+    required this.snapshot,
     required this.warehouses,
     required this.repository,
   });
 
   final BusinessWorkspace workspace;
+  final CatalogSnapshot snapshot;
   final List<WarehouseOption> warehouses;
   final InventoryRepository repository;
 
@@ -2395,7 +2434,8 @@ class _InventoryStocktakeStartDialog extends StatefulWidget {
 
 class _InventoryStocktakeStartDialogState
     extends State<_InventoryStocktakeStartDialog> {
-  late String _warehouseId = widget.warehouses.first.id;
+  late String _warehouseId =
+      widget.snapshot.bestWarehouse()?.id ?? widget.warehouses.first.id;
   final _reason = TextEditingController(text: 'Routine physical count');
   bool _saving = false;
   String? _error;

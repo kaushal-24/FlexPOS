@@ -139,7 +139,7 @@ class RegisterRepository implements SupabaseRepositoryContract {
         .eq('id', registerId);
   }
 
-  Future<void> archiveRegister({
+  Future<void> deleteRegister({
     required String businessId,
     required String registerId,
   }) async {

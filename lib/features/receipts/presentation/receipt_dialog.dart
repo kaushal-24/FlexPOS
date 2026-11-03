@@ -85,21 +85,6 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
     }
   }
 
-  Future<void> _share(ReceiptDocument receipt) async {
-    setState(() => _working = true);
-    try {
-      final bytes = await buildReceiptPdf(receipt, _paperSize.pageFormat);
-      await Printing.sharePdf(bytes: bytes, filename: receipt.fileName);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not share: $error')));
-      }
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
-  }
-
   Future<void> _download(ReceiptDocument receipt) async {
     setState(() => _working = true);
     try {
@@ -223,13 +208,6 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
                             : () => _download(receipt),
                         icon: const Icon(Icons.download_outlined),
                         label: const Text('Download PDF'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: receipt == null || _working
-                            ? null
-                            : () => _share(receipt),
-                        icon: const Icon(Icons.share_outlined),
-                        label: const Text('Share PDF'),
                       ),
                       FilledButton.icon(
                         onPressed: receipt == null || _working

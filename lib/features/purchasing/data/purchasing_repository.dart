@@ -143,8 +143,8 @@ class PurchasingRepository implements SupabaseRepositoryContract {
         .eq('id', supplierId);
   }
 
-  /// Supplier deletion is a reversible archive to preserve purchase history.
-  Future<void> archiveSupplier({
+  /// Deletes a supplier from active lists while preserving purchase history.
+  Future<void> deleteSupplier({
     required String businessId,
     required String supplierId,
   }) async {

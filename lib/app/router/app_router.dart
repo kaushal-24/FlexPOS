@@ -16,6 +16,7 @@ import 'package:flexpos/features/customers/presentation/customers_page.dart';
 import 'package:flexpos/features/dashboard/presentation/dashboard_page.dart';
 import 'package:flexpos/features/foundation/presentation/more_page.dart';
 import 'package:flexpos/features/inventory/presentation/inventory_page.dart';
+import 'package:flexpos/features/warehouses/presentation/warehouses_page.dart';
 import 'package:flexpos/features/industry/presentation/industry_operations_page.dart';
 import 'package:flexpos/features/enterprise/presentation/enterprise_operations_page.dart';
 import 'package:flexpos/features/hardware/presentation/hardware_operations_page.dart';
@@ -85,7 +86,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/join-business',
-        builder: (_, _) => const AcceptInvitationPage(),
+        builder: (_, state) => AcceptInvitationPage(
+          initialToken: state.uri.queryParameters['token'],
+        ),
       ),
       ShellRoute(
         builder: (context, state, child) =>
@@ -99,6 +102,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const CatalogManagementPage(),
           ),
           GoRoute(path: '/inventory', builder: (_, _) => const InventoryPage()),
+          GoRoute(
+            path: '/warehouses',
+            builder: (_, _) => const WarehousesPage(),
+          ),
           GoRoute(
             path: '/industry-operations',
             builder: (_, _) => const IndustryOperationsPage(),

@@ -310,35 +310,56 @@ async function deleteUser(ctx: AuthContext, body: Json, businessId: string): Pro
     .maybeSingle();
   if (targetMembershipError) throw targetMembershipError;
   if (!targetMembership) throw new Error("Staff membership not found");
-  const { data: memberships, error } = await ctx.adminClient
-    .from("memberships")
-    .select("id,business_id")
-    .eq("user_id", userId)
-    .is("archived_at", null);
-  if (error) throw error;
-  if ((memberships ?? []).length > 1) {
-    throw new Error("This login belongs to more than one business; remove this business access instead");
-  }
+  // Delete access only in the business where the action was requested. A
+  // staff login can belong to several businesses, and one tenant manager
+  // must never revoke access in another tenant. Archive the membership so it
+  // disappears from the active Staff & Roles list while preserving history.
   const { error: revokeError } = await ctx.adminClient
     .from("memberships")
-    .update({ status: "revoked" })
+    .update({
+      status: "revoked",
+      archived_at: new Date().toISOString(),
+    })
+    .eq("id", targetMembership.id)
+    .eq("business_id", businessId)
     .eq("user_id", userId);
   if (revokeError) throw revokeError;
-  const { error: disableError } = await ctx.adminClient.auth.admin.updateUserById(
-    userId,
-    { ban_duration: "876000h" },
-  );
-  if (disableError) throw disableError;
+  const { data: remainingMemberships, error: remainingError } = await ctx.adminClient
+    .from("memberships")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .is("archived_at", null);
+  if (remainingError) throw remainingError;
+  const loginDisabled = (remainingMemberships ?? []).length === 0;
+  if (loginDisabled) {
+    const { error: disableError } = await ctx.adminClient.auth.admin.updateUserById(
+      userId,
+      { ban_duration: "876000h" },
+    );
+    if (disableError) throw disableError;
+  }
   const { error: auditError } = await ctx.adminClient.from("tenant_audit_logs").insert({
     business_id: businessId,
     actor_user_id: ctx.user.id,
     action: "staff.user_deleted",
     target_type: "user",
     target_id: userId,
-    details: { direct_login_deleted: true, login_disabled: true },
+    details: {
+      business_access_archived: true,
+      direct_login_deleted: loginDisabled,
+      login_disabled: loginDisabled,
+      remaining_active_businesses: (remainingMemberships ?? []).length,
+    },
   });
   if (auditError) throw auditError;
-  return { user_id: userId, deleted: true, login_disabled: true };
+  return {
+    user_id: userId,
+    deleted: loginDisabled,
+    business_access_removed: true,
+    login_disabled: loginDisabled,
+    remaining_active_businesses: (remainingMemberships ?? []).length,
+  };
 }
 
 Deno.serve(async (request: Request) => {
@@ -355,7 +376,7 @@ Deno.serve(async (request: Request) => {
     return json(400, { error: "action must be create, update, or delete" });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = /authentication|required|permission|cannot|not belong|not found|must be|select at least|password|valid email/i.test(message)
+    const status = /authentication|required|permission|cannot|not belong|belongs|not found|must be|select at least|password|valid email/i.test(message)
       ? 400
       : 500;
     return json(status, { error: message });

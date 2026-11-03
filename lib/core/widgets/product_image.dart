@@ -2,12 +2,12 @@ import 'package:flexpos/features/catalog/data/catalog_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Renders a product image from the private Supabase product-images bucket.
+/// Renders a product image from the private Supabase product-images bucket
+/// or a public catalog URL.
 ///
-/// Product image paths are deliberately kept private in the database. This
-/// widget resolves a short-lived signed URL and always provides a stable
-/// placeholder/error state so product lists never fail when an image is
-/// missing, expired, or still loading.
+/// Private paths are resolved to short-lived signed URLs. Public URLs are
+/// used directly so seeded real-world catalogs can use licensed image CDNs.
+/// Both paths provide the same stable placeholder/error state.
 class ProductImage extends ConsumerStatefulWidget {
   const ProductImage({
     super.key,
@@ -64,9 +64,12 @@ class _ProductImageState extends ConsumerState<ProductImage> {
       _loading = true;
     });
     try {
-      final url = await ref
-          .read(catalogRepositoryProvider)
-          .createSignedProductImageUrl(path);
+      final uri = Uri.tryParse(path);
+      final url = uri != null && (uri.scheme == 'http' || uri.scheme == 'https')
+          ? path
+          : await ref
+              .read(catalogRepositoryProvider)
+              .createSignedProductImageUrl(path);
       if (mounted && widget.imagePath?.trim() == path) {
         setState(() {
           _url = url;

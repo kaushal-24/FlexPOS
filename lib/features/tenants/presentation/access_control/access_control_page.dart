@@ -126,14 +126,45 @@ class _AccessControlContent extends ConsumerWidget {
     );
     if (result == null || !context.mounted) return;
     ref.invalidate(accessControlOverviewProvider(workspace.businessId));
+    String? emailProvider;
+    String? emailError;
+    try {
+      final baseUri = Uri.base;
+      final redirectTo = Uri(
+        scheme: baseUri.scheme,
+        host: baseUri.host,
+        port: baseUri.hasPort ? baseUri.port : null,
+        path: baseUri.path.isEmpty ? '/' : baseUri.path,
+        fragment: '/join-business',
+      ).toString();
+      emailProvider = await ref
+          .read(tenantRepositoryProvider)
+          .sendStaffInvitationEmail(
+            businessId: workspace.businessId,
+            invitationId: result.id,
+            token: result.token,
+            redirectTo: redirectTo,
+          );
+    } catch (error) {
+      emailError = error.toString();
+    }
+    if (!context.mounted) return;
+    final inviteMessage = emailProvider == null
+        ? 'The invitation was created, but the email provider could not send it.\n\n'
+              'Share this one-time invitation code securely with ${result.email}:\n\n'
+              '${result.token}\n\nIt expires in 7 days.\n\n'
+              'Email error: ${emailError ?? 'Unknown email delivery error'}'
+        : 'An invitation email was sent to ${result.email} using $emailProvider.\n\n'
+              'Fallback code (expires in 7 days):\n\n${result.token}';
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Invitation created'),
-        content: SelectableText(
-          'Share this one-time invitation code securely with ${result.email}:\n\n'
-          '${result.token}\n\nIt expires in 7 days.',
+        title: Text(
+          emailProvider == null
+              ? 'Invitation created — email not sent'
+              : 'Invitation email sent',
         ),
+        content: SelectableText(inviteMessage),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(context),
@@ -279,11 +310,11 @@ class _AccessControlContent extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Disable staff login?'),
+        title: const Text('Delete staff access?'),
         content: Text(
-          'This deletes the Supabase login for ${member.email ?? member.fullName ?? 'this staff member'}. '
-          'The login will be disabled and this business access revoked while history is retained. '
-          'Use Remove access instead if you only want to revoke this business.',
+          'Remove ${member.email ?? member.fullName ?? 'this staff member'} from this business? '
+          'Their membership will be removed from this business. If this is their last active business, '
+          'the Supabase login will also be disabled; other business memberships are not affected.',
         ),
         actions: [
           TextButton(
@@ -304,6 +335,11 @@ class _AccessControlContent extends ConsumerWidget {
         userId: member.userId,
       );
       ref.invalidate(accessControlOverviewProvider(workspace.businessId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Staff access deleted from this business.')),
+        );
+      }
     } catch (error) {
       if (context.mounted) _showError(context, error.toString());
     }

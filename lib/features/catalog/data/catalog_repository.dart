@@ -493,10 +493,9 @@ class CatalogRepository implements SupabaseRepositoryContract {
         .single();
   }
 
-  /// Product deletion is a tenant-safe archive. Variants are archived with
-  /// the product so the item disappears from active POS/catalog queries while
-  /// historical sales retain their snapshots.
-  Future<void> archiveProduct({
+  /// Deletes a product from active catalog/POS views while preserving
+  /// historical sale snapshots and related inventory references.
+  Future<void> deleteProduct({
     required String businessId,
     required String productId,
   }) async {
@@ -515,8 +514,13 @@ class CatalogRepository implements SupabaseRepositoryContract {
         .eq('product_id', productId);
   }
 
-  Future<String> createSignedProductImageUrl(String imagePath) =>
-      _client.storage.from('product-images').createSignedUrl(imagePath, 3600);
+  Future<String> createSignedProductImageUrl(String imagePath) {
+    final uri = Uri.tryParse(imagePath.trim());
+    if (uri?.hasScheme == true && (uri?.scheme == 'http' || uri?.scheme == 'https')) {
+      return Future.value(imagePath.trim());
+    }
+    return _client.storage.from('product-images').createSignedUrl(imagePath, 3600);
+  }
 
   Future<void> bulkUpdateProductCatalog({
     required String businessId,

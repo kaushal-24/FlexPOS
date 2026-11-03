@@ -613,8 +613,8 @@ class _PurchasingPageState extends ConsumerState<PurchasingPage> {
                       ),
                     if (canDelete)
                       IconButton(
-                        tooltip: 'Archive supplier',
-                        onPressed: () => _archiveSupplier(
+                        tooltip: 'Delete supplier',
+                        onPressed: () => _deleteSupplier(
                           context,
                           ref,
                           workspace,
@@ -720,7 +720,7 @@ class _PurchasingPageState extends ConsumerState<PurchasingPage> {
     }
   }
 
-  Future<void> _archiveSupplier(
+  Future<void> _deleteSupplier(
     BuildContext context,
     WidgetRef ref,
     BusinessWorkspace workspace,
@@ -729,9 +729,9 @@ class _PurchasingPageState extends ConsumerState<PurchasingPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive supplier?'),
+        title: const Text('Delete supplier?'),
         content: Text(
-          '“${supplier.name}” will be hidden from active lists. Purchase history is preserved.',
+          '“${supplier.name}” will be removed from active lists. Purchase history is preserved.',
         ),
         actions: [
           TextButton(
@@ -740,27 +740,27 @@ class _PurchasingPageState extends ConsumerState<PurchasingPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
     try {
-      await ref.read(purchasingRepositoryProvider).archiveSupplier(
+      await ref.read(purchasingRepositoryProvider).deleteSupplier(
         businessId: workspace.businessId,
         supplierId: supplier.id,
       );
       ref.invalidate(suppliersProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Supplier archived.')),
+          const SnackBar(content: Text('Supplier deleted.')),
         );
       }
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive supplier: $error')),
+          SnackBar(content: Text('Could not delete supplier: $error')),
         );
       }
     }
@@ -1898,7 +1898,8 @@ class _PurchaseOrderDialog extends StatefulWidget {
 
 class _PurchaseOrderDialogState extends State<_PurchaseOrderDialog> {
   late String _supplierId = widget.suppliers.first.id;
-  late String _warehouseId = widget.catalog.warehouses.first.id;
+  late String _warehouseId =
+      widget.catalog.bestWarehouse()?.id ?? widget.catalog.warehouses.first.id;
   final _reference = TextEditingController();
   final _notes = TextEditingController();
   final List<_PurchaseDraftLine> _lines = [];

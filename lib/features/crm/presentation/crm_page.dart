@@ -353,9 +353,9 @@ class _LeadsTab extends ConsumerWidget {
                               onSelected: (action) {
                                 if (action == 'edit' && workspace != null) {
                                   _editLead(context, workspace, ref, lead);
-                                } else if (action == 'archive' &&
+                                } else if (action == 'delete' &&
                                     workspace != null) {
-                                  _archiveLead(context, workspace, ref, lead);
+                                  _deleteLead(context, workspace, ref, lead);
                                 }
                               },
                               itemBuilder: (_) => [
@@ -366,8 +366,8 @@ class _LeadsTab extends ConsumerWidget {
                                   ),
                                 if (canDelete)
                                   const PopupMenuItem(
-                                    value: 'archive',
-                                    child: Text('Archive lead'),
+                                    value: 'delete',
+                                    child: Text('Delete lead'),
                                   ),
                               ],
                             ),
@@ -619,7 +619,7 @@ class _OpportunitiesTab extends ConsumerWidget {
                                     opportunity,
                                   );
                                 } else {
-                                  _archiveOpportunity(
+                                  _deleteOpportunity(
                                     context,
                                     workspace,
                                     ref,
@@ -635,8 +635,8 @@ class _OpportunitiesTab extends ConsumerWidget {
                                   ),
                                 if (canDelete)
                                   const PopupMenuItem(
-                                    value: 'archive',
-                                    child: Text('Archive opportunity'),
+                                    value: 'delete',
+                                    child: Text('Delete opportunity'),
                                   ),
                               ],
                             ),
@@ -857,7 +857,7 @@ class _QuotationsTab extends ConsumerWidget {
                                         quotation,
                                       );
                                     } else {
-                                      _archiveQuotation(
+                                      _deleteQuotation(
                                         context,
                                         workspace,
                                         ref,
@@ -873,8 +873,8 @@ class _QuotationsTab extends ConsumerWidget {
                                       ),
                                     if (canDelete)
                                       const PopupMenuItem(
-                                        value: 'archive',
-                                        child: Text('Archive quotation'),
+                                        value: 'delete',
+                                        child: Text('Delete quotation'),
                                       ),
                                   ],
                                 ),
@@ -1657,7 +1657,7 @@ Future<void> _editLead(
   }
 }
 
-Future<void> _archiveLead(
+Future<void> _deleteLead(
   BuildContext context,
   BusinessWorkspace workspace,
   WidgetRef ref,
@@ -1666,9 +1666,9 @@ Future<void> _archiveLead(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Archive lead?'),
+      title: const Text('Delete lead?'),
       content: Text(
-        'Archive “${lead.title}”? Historical activity is retained.',
+        'Delete “${lead.title}”? Historical activity is retained.',
       ),
       actions: [
         TextButton(
@@ -1677,7 +1677,7 @@ Future<void> _archiveLead(
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Archive'),
+          child: const Text('Delete'),
         ),
       ],
     ),
@@ -1685,7 +1685,7 @@ Future<void> _archiveLead(
   if (confirmed != true) return;
   await ref
       .read(crmRepositoryProvider)
-      .archiveLead(id: lead.id, businessId: workspace.businessId);
+      .deleteLead(id: lead.id, businessId: workspace.businessId);
   ref.invalidate(crmLeadsProvider);
 }
 
@@ -1728,7 +1728,7 @@ Future<void> _editOpportunity(
   if (saved == true) ref.invalidate(crmOpportunitiesProvider);
 }
 
-Future<void> _archiveOpportunity(
+Future<void> _deleteOpportunity(
   BuildContext context,
   BusinessWorkspace workspace,
   WidgetRef ref,
@@ -1737,9 +1737,9 @@ Future<void> _archiveOpportunity(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Archive opportunity?'),
+      title: const Text('Delete opportunity?'),
       content: Text(
-        'Archive “${opportunity.title}”? Historical activity is retained.',
+        'Delete “${opportunity.title}”? Historical activity is retained.',
       ),
       actions: [
         TextButton(
@@ -1748,7 +1748,7 @@ Future<void> _archiveOpportunity(
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Archive'),
+          child: const Text('Delete'),
         ),
       ],
     ),
@@ -1756,7 +1756,7 @@ Future<void> _archiveOpportunity(
   if (confirmed != true) return;
   await ref
       .read(crmRepositoryProvider)
-      .archiveOpportunity(id: opportunity.id, businessId: workspace.businessId);
+      .deleteOpportunity(id: opportunity.id, businessId: workspace.businessId);
   ref.invalidate(crmOpportunitiesProvider);
 }
 
@@ -1799,7 +1799,7 @@ Future<void> _editQuotation(
   if (saved == true) ref.invalidate(crmQuotationsProvider);
 }
 
-Future<void> _archiveQuotation(
+Future<void> _deleteQuotation(
   BuildContext context,
   BusinessWorkspace workspace,
   WidgetRef ref,
@@ -1808,9 +1808,9 @@ Future<void> _archiveQuotation(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Archive quotation?'),
+      title: const Text('Delete quotation?'),
       content: Text(
-        'Archive ${quotation.quotationNumber}? Historical activity is retained.',
+        'Delete ${quotation.quotationNumber}? Historical activity is retained.',
       ),
       actions: [
         TextButton(
@@ -1819,7 +1819,7 @@ Future<void> _archiveQuotation(
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Archive'),
+          child: const Text('Delete'),
         ),
       ],
     ),
@@ -1827,7 +1827,7 @@ Future<void> _archiveQuotation(
   if (confirmed != true) return;
   await ref
       .read(crmRepositoryProvider)
-      .archiveQuotation(id: quotation.id, businessId: workspace.businessId);
+      .deleteQuotation(id: quotation.id, businessId: workspace.businessId);
   ref.invalidate(crmQuotationsProvider);
 }
 

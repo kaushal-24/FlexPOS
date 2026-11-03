@@ -282,8 +282,8 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
                               _recordCashMovement(context, ref, shift, type),
                           onReport: (shift) => _showReport(context, ref, shift),
                           onEdit: () => _editRegister(context, ref, register),
-                          onArchive: () =>
-                              _archiveRegister(context, ref, register),
+                          onDelete: () =>
+                              _deleteRegister(context, ref, register),
                           canUpdate: canUpdate,
                           canDelete: canDelete,
                           selected: _selectedRegisterIds.contains(register.id),
@@ -365,7 +365,7 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
     if (saved == true) ref.invalidate(registerOperationsProvider);
   }
 
-  Future<void> _archiveRegister(
+  Future<void> _deleteRegister(
     BuildContext context,
     WidgetRef ref,
     PosRegister register,
@@ -373,9 +373,9 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive register?'),
+        title: const Text('Delete register?'),
         content: Text(
-          '“${register.name}” will be hidden from active registers. Shift history is preserved.',
+          '“${register.name}” will be removed from active registers. Shift history is preserved.',
         ),
         actions: [
           TextButton(
@@ -384,7 +384,7 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -393,7 +393,7 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
     try {
       await ref
           .read(registerRepositoryProvider)
-          .archiveRegister(
+          .deleteRegister(
             businessId: workspace.businessId,
             registerId: register.id,
           );
@@ -401,7 +401,7 @@ class _RegistersContentState extends ConsumerState<_RegistersContent> {
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive register: $error')),
+          SnackBar(content: Text('Could not delete register: $error')),
         );
       }
     }
@@ -544,7 +544,7 @@ class _RegisterCard extends StatelessWidget {
     required this.onCashMovement,
     required this.onReport,
     required this.onEdit,
-    required this.onArchive,
+    required this.onDelete,
     required this.canUpdate,
     required this.canDelete,
     required this.selected,
@@ -563,7 +563,7 @@ class _RegisterCard extends StatelessWidget {
   final void Function(RegisterShift shift, String movementType) onCashMovement;
   final ValueChanged<RegisterShift> onReport;
   final VoidCallback onEdit;
-  final VoidCallback onArchive;
+  final VoidCallback onDelete;
   final bool canUpdate;
   final bool canDelete;
   final bool selected;
@@ -613,7 +613,7 @@ class _RegisterCard extends StatelessWidget {
             if (canUpdate || canDelete)
               PopupMenuButton<String>(
                 tooltip: 'Register actions',
-                onSelected: (value) => value == 'edit' ? onEdit() : onArchive(),
+                onSelected: (value) => value == 'edit' ? onEdit() : onDelete(),
                 itemBuilder: (_) => [
                   if (canUpdate)
                     const PopupMenuItem(
@@ -626,11 +626,11 @@ class _RegisterCard extends StatelessWidget {
                     ),
                   if (canDelete)
                     const PopupMenuItem(
-                      value: 'archive',
+                      value: 'delete',
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.archive_outlined),
-                        title: Text('Archive register'),
+                        leading: Icon(Icons.delete_outline_rounded),
+                        title: Text('Delete register'),
                       ),
                     ),
                 ],

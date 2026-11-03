@@ -239,9 +239,9 @@ class BranchManagementPage extends ConsumerWidget {
                                   if (canDelete)
                                     TextButton.icon(
                                       onPressed: () =>
-                                          _archiveBranch(context, ref, branch),
-                                      icon: const Icon(Icons.archive_outlined),
-                                      label: const Text('Archive'),
+                                          _deleteBranch(context, ref, branch),
+                                      icon: const Icon(Icons.delete_outline_rounded),
+                                      label: const Text('Delete'),
                                     ),
                                 ],
                               ),
@@ -259,7 +259,7 @@ class BranchManagementPage extends ConsumerWidget {
         );
   }
 
-  Future<void> _archiveBranch(
+  Future<void> _deleteBranch(
     BuildContext context,
     WidgetRef ref,
     BusinessBranch branch,
@@ -267,9 +267,9 @@ class BranchManagementPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive branch?'),
+        title: const Text('Delete branch?'),
         content: Text(
-          'Archive “${branch.name}”? It will no longer be available for new operations.',
+          'Delete “${branch.name}”? It will no longer be available for new operations.',
         ),
         actions: [
           TextButton(
@@ -278,7 +278,7 @@ class BranchManagementPage extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -298,7 +298,7 @@ class BranchManagementPage extends ConsumerWidget {
     } on PostgrestException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive branch: ${error.message}')),
+          SnackBar(content: Text('Could not delete branch: ${error.message}')),
         );
       }
     }

@@ -302,9 +302,9 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                           ),
                         if (canDelete)
                           IconButton(
-                            tooltip: 'Archive customer',
+                            tooltip: 'Delete customer',
                             onPressed: () =>
-                                _archiveCustomer(context, workspace, customer),
+                                _deleteCustomer(context, workspace, customer),
                             icon: const Icon(Icons.delete_outline_rounded),
                           ),
                         if (canViewPurchases ||
@@ -566,7 +566,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     }
   }
 
-  Future<void> _archiveCustomer(
+  Future<void> _deleteCustomer(
     BuildContext context,
     BusinessWorkspace workspace,
     Customer customer,
@@ -574,9 +574,9 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive customer?'),
+        title: const Text('Delete customer?'),
         content: Text(
-          '“${customer.name}” will be hidden from active lists. Historical sales are preserved.',
+          '“${customer.name}” will be removed from active lists. Historical sales are preserved.',
         ),
         actions: [
           TextButton(
@@ -585,7 +585,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -594,19 +594,19 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     try {
       await ref
           .read(customerRepositoryProvider)
-          .archiveCustomer(
+          .deleteCustomer(
             businessId: workspace.businessId,
             customerId: customer.id,
           );
       ref.invalidate(customersProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Customer archived.')));
+            .showSnackBar(const SnackBar(content: Text('Customer deleted.')));
       }
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive customer: $error')),
+          SnackBar(content: Text('Could not delete customer: $error')),
         );
       }
     }

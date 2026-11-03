@@ -7,7 +7,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AcceptInvitationPage extends ConsumerStatefulWidget {
-  const AcceptInvitationPage({super.key});
+  const AcceptInvitationPage({super.key, this.initialToken});
+
+  final String? initialToken;
+
   @override
   ConsumerState<AcceptInvitationPage> createState() =>
       _AcceptInvitationPageState();
@@ -16,6 +19,22 @@ class AcceptInvitationPage extends ConsumerStatefulWidget {
 class _AcceptInvitationPageState extends ConsumerState<AcceptInvitationPage> {
   final _token = TextEditingController();
   bool _submitting = false;
+  bool _autoSubmitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final token = widget.initialToken?.trim() ?? '';
+    if (token.isNotEmpty) {
+      _token.text = token;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_autoSubmitted) {
+          _autoSubmitted = true;
+          _accept();
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -75,7 +94,7 @@ class _AcceptInvitationPageState extends ConsumerState<AcceptInvitationPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign in with the invited email address, then enter the one-time code shared by your business administrator.',
+                  'Use the invitation link from your email, or sign in with the invited email address and enter the one-time code.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 22),

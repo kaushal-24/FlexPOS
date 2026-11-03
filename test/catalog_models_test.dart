@@ -1,4 +1,5 @@
 import 'package:flexpos/features/catalog/domain/catalog_models.dart';
+import 'package:flexpos/features/warehouses/domain/warehouse_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -128,6 +129,57 @@ void main() {
 
     expect(snapshot.stockFor('variant-1'), 14);
     expect(snapshot.stockForWarehouse('variant-1', 'warehouse-1'), 10);
+  });
+
+  test('snapshot chooses a stocked warehouse over an empty first row', () {
+    const product = CatalogProduct(
+      productId: 'product-1',
+      variantId: 'variant-1',
+      name: 'Coffee',
+      variantName: 'Default',
+      sku: 'COFFEE-1',
+      priceMinor: 4000,
+      costMinor: 2500,
+      taxRateBasisPoints: 1800,
+      trackInventory: true,
+      allowFractionalQuantity: false,
+      barcodes: [],
+    );
+    const snapshot = CatalogSnapshot(
+      units: [],
+      categories: [],
+      brands: [],
+      taxRates: [],
+      warehouses: [
+        WarehouseOption(
+          id: 'empty-warehouse',
+          name: 'A Empty Warehouse',
+          branchId: 'branch-1',
+        ),
+        WarehouseOption(
+          id: 'stocked-warehouse',
+          name: 'B Stocked Warehouse',
+          branchId: 'branch-1',
+        ),
+      ],
+      registers: [],
+      products: [product],
+      balances: [
+        StockBalance(
+          variantId: 'variant-1',
+          warehouseId: 'stocked-warehouse',
+          quantity: 24,
+          reserved: 2,
+          reorderPoint: 4,
+        ),
+      ],
+    );
+
+    expect(snapshot.bestWarehouse()?.id, 'stocked-warehouse');
+    expect(
+      snapshot.bestWarehouse(variantId: 'variant-1')?.id,
+      'stocked-warehouse',
+    );
   });
 
   test('direct customer price takes precedence over group price', () {
@@ -521,5 +573,25 @@ void main() {
 
     expect(sale.customerId, 'customer-1');
     expect(sale.notes, 'Deliver before noon');
+  });
+
+  test('warehouse record parses CRUD fields and active state', () {
+    final warehouse = WarehouseRecord.fromJson({
+      'id': 'warehouse-1',
+      'business_id': 'business-1',
+      'branch_id': 'branch-1',
+      'name': 'Back room',
+      'code': 'BACK-ROOM',
+      'is_default': true,
+      'is_active': false,
+      'created_at': '2026-11-03T00:00:00Z',
+      'updated_at': '2026-11-03T01:00:00Z',
+    });
+
+    expect(warehouse.name, 'Back room');
+    expect(warehouse.code, 'BACK-ROOM');
+    expect(warehouse.isDefault, isTrue);
+    expect(warehouse.isActive, isFalse);
+    expect(warehouse.branchId, 'branch-1');
   });
 }

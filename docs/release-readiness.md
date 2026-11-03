@@ -64,7 +64,7 @@ Before distribution, verify on the target device/browser:
 2. Search and camera-scan a known product, complete an online sale, and verify
    one inventory decrement and one persisted receipt.
 3. Exercise cash, UPI success/failure confirmation, and Razorpay test mode.
-4. Print/share a thermal receipt and reprint it from sales history.
+4. Print a thermal receipt, download the PDF, and reprint it from sales history.
 5. Confirm low-stock highlighting, returns, purchasing receipt, and reports.
 6. Confirm no offline queue is created when the network is unavailable.
 7. Record build hashes, signer fingerprints, test timestamps, and the physical

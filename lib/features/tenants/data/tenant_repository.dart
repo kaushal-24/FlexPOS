@@ -99,7 +99,7 @@ class TenantRepository implements SupabaseRepositoryContract {
         .eq('id', businessId);
   }
 
-  Future<void> archiveBusiness(String businessId) async {
+  Future<void> deleteBusiness(String businessId) async {
     await _client
         .from('businesses')
         .update({'archived_at': DateTime.now().toUtc().toIso8601String()})
@@ -453,6 +453,32 @@ class TenantRepository implements SupabaseRepositoryContract {
     return StaffInvitationResult.fromJson(
       Map<String, dynamic>.from(result as Map),
     );
+  }
+
+  Future<String> sendStaffInvitationEmail({
+    required String businessId,
+    required String invitationId,
+    required String token,
+    required String redirectTo,
+  }) async {
+    final response = await _client.functions.invoke(
+      'staff-invite-email',
+      body: {
+        'business_id': businessId,
+        'invitation_id': invitationId,
+        'token': token,
+        'redirect_to': redirectTo,
+      },
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError(
+        _functionError(response.data, 'Could not send the invitation email.'),
+      );
+    }
+    final data = response.data is Map
+        ? Map<String, dynamic>.from(response.data as Map)
+        : <String, dynamic>{};
+    return data['provider'] as String? ?? 'email provider';
   }
 
   String _functionError(Object? data, String fallback) {

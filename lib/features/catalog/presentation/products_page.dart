@@ -366,13 +366,13 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                                 ),
                               if (canDelete)
                                 TextButton.icon(
-                                  onPressed: () => _archiveProduct(
+                                  onPressed: () => _deleteProduct(
                                     context,
                                     workspace!,
                                     product,
                                   ),
-                                  icon: const Icon(Icons.archive_outlined),
-                                  label: const Text('Archive'),
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                  label: const Text('Delete'),
                                 ),
                             ],
                           ),
@@ -505,7 +505,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     }
   }
 
-  Future<void> _archiveProduct(
+  Future<void> _deleteProduct(
     BuildContext context,
     BusinessWorkspace workspace,
     CatalogProduct product,
@@ -513,9 +513,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive product?'),
+        title: const Text('Delete product?'),
         content: Text(
-          'Archive “${product.name}”? It will disappear from active catalog and POS searches while historical sales remain unchanged.',
+          'Delete “${product.name}”? It will be removed from the active catalog and POS searches while historical sales remain unchanged.',
         ),
         actions: [
           TextButton(
@@ -524,7 +524,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -533,19 +533,19 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     try {
       await ref
           .read(catalogRepositoryProvider)
-          .archiveProduct(
+          .deleteProduct(
             businessId: workspace.businessId,
             productId: product.productId,
           );
       ref.invalidate(catalogSnapshotProvider);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Product archived.')));
+            .showSnackBar(const SnackBar(content: Text('Product deleted.')));
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive product: $error')),
+          SnackBar(content: Text('Could not delete product: $error')),
         );
       }
     }
@@ -1015,9 +1015,9 @@ class _ProductDetailsDialogState extends State<_ProductDetailsDialog> {
     actions: [
       if (widget.canDelete)
         TextButton.icon(
-          onPressed: _saving ? null : _archive,
-          icon: const Icon(Icons.archive_outlined),
-          label: const Text('Archive'),
+          onPressed: _saving ? null : _delete,
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: const Text('Delete'),
         ),
       TextButton(
         onPressed: _saving ? null : () => Navigator.pop(context),
@@ -1123,13 +1123,13 @@ class _ProductDetailsDialogState extends State<_ProductDetailsDialog> {
     }
   }
 
-  Future<void> _archive() async {
+  Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive product?'),
+        title: const Text('Delete product?'),
         content: Text(
-          '“${widget.product.name}” will be hidden from active catalog and POS lists. Historical sales are preserved.',
+          '“${widget.product.name}” will be removed from active catalog and POS lists. Historical sales are preserved.',
         ),
         actions: [
           TextButton(
@@ -1138,7 +1138,7 @@ class _ProductDetailsDialogState extends State<_ProductDetailsDialog> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1146,7 +1146,7 @@ class _ProductDetailsDialogState extends State<_ProductDetailsDialog> {
     if (confirmed != true) return;
     setState(() => _saving = true);
     try {
-      await widget.repository.archiveProduct(
+      await widget.repository.deleteProduct(
         businessId: widget.businessId,
         productId: widget.product.productId,
       );

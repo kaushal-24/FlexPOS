@@ -129,15 +129,15 @@ trackable implementation document for **FlexPOS**.
 - [x] Role-aware CRUD actions across master-data screens. Flutter resolves
   create/read/update/delete capabilities from the role's scoped `*.view` and
   `*.manage` grants (with support for narrower future grants), hides or
-  disables unauthorized actions, and uses reversible archive mutations for
+  disables unauthorized actions, and uses tenant-safe delete mutations for
   customers, suppliers, products, and registers so historical records remain
   intact. Promotions also expose permission-gated deletion. CRM leads,
-  opportunities, and quotations now expose role-gated edit and archive actions;
+  opportunities, and quotations now expose role-gated edit and delete actions;
   CRM follow-ups, customer notes, reminders, and promotions now expose
   role-gated edit/delete actions; accounting setup records expose safe
   edit/delete actions; custom role deletion is guarded by the server and
   refuses system or assigned roles. Businesses and branches expose edit and
-  archive controls; staff memberships expose role/branch editing and revoke;
+  delete controls; staff memberships expose role/branch editing and revoke;
   posted sales expose audited customer/note editing while totals, line items,
   payments, and return history remain immutable. Hardware removal is
   role-gated and audit-safe through the tenant RLS policy.
@@ -179,10 +179,11 @@ trackable implementation document for **FlexPOS**.
   lookup; setup guidance is documented in `docs/hardware-scanner-setup.md`.
 - [x] Product variants.
 - [x] Units and fractional-quantity schema.
-- [x] Cashier stock visibility boundary. Cashiers do not see the Inventory
-  module or direct inventory details; POS catalog cards expose only `In stock`
-  or `Out of stock` while exact quantities remain internal for checkout
-  validation.
+- [x] Role-aware cashier stock visibility boundary. Cashiers do not see the
+  Inventory module or direct inventory details; POS catalog cards expose only
+  `In stock` or `Out of stock`, while roles with inventory-read permission see
+  exact quantities and low-stock indicators. Exact balances remain internal
+  for checkout validation.
 - [x] Custom sale items. Authorized cashiers can add one-off service items from
   POS with a name, price, quantity, optional tax rate, generated SKU, and
   idempotent audited backend creation.
@@ -295,8 +296,8 @@ trackable implementation document for **FlexPOS**.
 - [x] Configurable invoice templates, logo, and QR code. Business-scoped
   private asset storage, receipt settings, 58/80 mm PDF QR rendering, and
   classic/minimal template rendering are implemented.
-- [x] Print, download, and share receipts. The receipt dialog provides system
-  print, PDF share, and a dedicated PDF save/download action.
+- [x] Print and download receipts. The receipt dialog provides system print
+  and a dedicated PDF save/download action.
 - [x] Multiple-register and cashier-shift backend schema/RPCs.
 - [x] Register creation and cashier-shift management UI.
 - [x] Opening and closing cash backend RPCs.
@@ -332,7 +333,8 @@ trackable implementation document for **FlexPOS**.
 - [x] Product images and secure Storage policies. Product images use the
   private `product-images` bucket with tenant/permission-scoped Storage
   policies, 5 MB type-limited uploads, signed preview URLs, replacement, and
-  removal controls.
+  removal controls. The renderer also accepts stable public catalog photo URLs
+  for the seeded real-world showcase catalog.
 - [x] Unit conversions. Business-scoped conversion definitions are managed in
   Catalog tools as explicit base-unit multipliers; all persisted inventory
   remains normalized to the product base unit.
@@ -465,9 +467,9 @@ trackable implementation document for **FlexPOS**.
 
 ### CRM
 
-- [x] Leads with permission-gated creation, edit, archive, list controls, and salesperson attribution.
-- [x] Opportunities with stage/value/probability tracking, creation, edit/archive actions, and list controls.
-- [x] CRM quotations with totals, status, notes, salesperson attribution, edit/archive actions, and list controls.
+- [x] Leads with permission-gated creation, edit, delete, list controls, and salesperson attribution.
+- [x] Opportunities with stage/value/probability tracking, creation, edit/delete actions, and list controls.
+- [x] CRM quotations with totals, status, notes, salesperson attribution, edit/delete actions, and list controls.
 - [x] Follow-ups with due dates, completion controls, and list controls.
 - [x] Customer notes with private-note visibility and salesperson attribution.
 - [x] Sales pipeline views for leads and opportunities with search, filtering, sorting, and pagination.
@@ -1037,7 +1039,7 @@ payments, or synchronize later.
   are exact and verified by live backend tests.
 - [x] Completed sales update inventory and database-backed reports.
 - [x] Receipt can be generated from persisted sale data, previewed,
-  downloaded, printed/shared as PDF, and reprinted from order history.
+  downloaded, printed as PDF, and reprinted from order history.
 - [x] Partial and full cash-sale returns restore eligible inventory, record
   refunds, and net live reports.
 - [x] Purchasing receipt correctly increases stock.
@@ -1129,9 +1131,9 @@ offline POS items are explicitly marked intentionally disabled).
   now have role-gated edit/delete paths with live RLS/RPC enforcement. Posted
   journals, sales, and ledger histories remain lifecycle-controlled.
 - [x] Visible CRUD controls pass (2026-11-02): products now expose labeled
-  create, edit, bulk-edit, image, price, inventory-flag, and archive actions;
-  branches expose labeled edit and archive; businesses expose create, edit,
-  and archive management; staff exposes labeled add/invite, view details,
+  create, edit, bulk-edit, image, price, inventory-flag, and delete actions;
+  branches expose labeled edit and delete; businesses expose create, edit,
+  and delete management; staff exposes labeled add/invite, view details,
   role/branch edit, reactivation, and remove-access controls; sales exposes
   new-sale, detail, audited edit, receipt, return,
   exchange, and reconciliation actions while preserving immutable posted-sale
@@ -1163,17 +1165,48 @@ offline POS items are explicitly marked intentionally disabled).
   optional staff assignment, and managers can open a shift for a selected
   active staff member with branch-scoped authorization.
 - [x] CRUD audit pass (2026-11-02): all current master-data screens expose
-  role-gated create/view/update/archive (or revoke) controls. Posted sales,
+  role-gated create/view/update/delete (or revoke) controls. Posted sales,
   payments, journals, audit logs, and closed shift history intentionally remain
   immutable; their supported lifecycle actions are returns, reconciliation,
-  audited metadata correction, reports, and archive rather than destructive
-  deletes.
+  audited metadata correction, reports, and lifecycle-safe deletes rather than
+  destructive removal of financial history.
 - [x] Staff invite reliability pass (2026-11-02): staff invitations normalize
   email addresses, reject malformed addresses before the RPC call, and surface
   both provider and unexpected errors in the dialog.
+- [x] Staff invitation email pass (2026-11-03): invitations now call the
+  `staff-invite-email` Edge Function. It sends a branded code/link through
+  Resend when configured and falls back to Supabase Auth SMTP; the dialog
+  reports the provider result and always preserves the one-time-code fallback.
+- [x] Delete-action UX pass (2026-11-03): active catalog, customer, supplier,
+  CRM, register, branch, and business records now expose labeled Delete
+  actions instead of Archive actions. The tenant-safe backend deactivates
+  records from active views while preserving financial and historical links.
+- [x] Removed-staff reporting cleanup (2026-11-03): dashboard cashier
+  performance now includes only staff with an active membership in the
+  business; historical sales by removed staff remain preserved for audit and
+  financial totals.
+- [x] POS stock-selection fix (2026-11-03): when the warehouse selector is
+  hidden, POS now prefers the cashier's open-shift branch and otherwise picks
+  the active warehouse with the broadest real stock coverage instead of the
+  alphabetically first empty warehouse. Product availability, quantities, and
+  low-stock badges now use that same warehouse consistently across businesses.
+- [x] Shared warehouse-selection fix (2026-11-03): inventory adjustment,
+  serial/IMEI registration, damage/loss, transfers, stocktakes, purchase
+  orders, and sales exchanges now default to the warehouse with real usable
+  stock instead of blindly selecting the first alphabetic warehouse. A stale
+  POS warehouse is replaced automatically when it has no available stock.
+- [x] Warehouse administration module (2026-11-03): added a permission-aware
+  Warehouses navigation destination with business/branch scoped search,
+  sorting, pagination, create, edit, default assignment, restore, and
+  reversible delete actions. Deletion deactivates the warehouse to preserve
+  inventory movement history.
 - [x] Product creation image pass (2026-11-02): the create-product dialog now
   previews, replaces, removes, and uploads an optional image after the product
   record is created.
+- [x] Real-world catalog refresh (2026-11-03): active products across BigMart,
+  FlexPOS, FlexPOS Retail, and La Quench Cafe now use business-specific real
+  product/menu names, descriptions, pack sizes, prices, SKUs, and image URLs;
+  historical transaction rows remain unchanged.
 - [x] Dashboard/auth polish pass (2026-11-02): the workspace facts panel is
   larger and easier to scan, and the login welcome side uses an off-white
   branded surface while the sign-in side remains dark.
@@ -1334,7 +1367,7 @@ cahnge chart of weekly projection
 
 CRUD follow-up completed 2026-11-02:
 - Products, branches, businesses, staff, and custom roles have visible,
-  labeled, role-gated edit/archive/revoke actions; product editing covers the
+  labeled, role-gated edit/delete/revoke actions; product editing covers the
   catalog name, SKU, primary barcode, cost, selling price, inventory flags,
   attributes, and image.
 - Sales have a visible edit action for audited customer and note corrections;

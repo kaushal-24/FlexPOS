@@ -46,6 +46,10 @@ class MorePage extends ConsumerWidget {
         (Icons.point_of_sale_outlined, 'Registers and shifts', '/registers'),
       if (workspace.canRead('branches'))
         (Icons.account_tree_outlined, 'Branches', '/branches'),
+      if (workspace.isFeatureEnabled(FeatureCodes.inventory) &&
+          workspace.canRead('inventory') &&
+          workspace.roleName.trim().toLowerCase() != 'cashier')
+        (Icons.warehouse_outlined, 'Warehouses', '/warehouses'),
       if (workspace.canRead('business'))
         (Icons.storefront_outlined, 'Businesses', '/businesses'),
       if (workspace.canRead('staff') || workspace.canRead('roles'))
