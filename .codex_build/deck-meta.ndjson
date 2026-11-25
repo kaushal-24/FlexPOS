@@ -1,0 +1,43 @@
+{"kind":"layout","id":"ly/atofqts7","editable":false,"name":"Master","type":"master"}
+{"kind":"layout","id":"ly/ux4ruhcv","editable":false,"name":"Title Slide","type":"title","placeholders":[{"name":"title","type":"title"},{"name":"subtitle","type":"subtitle"}]}
+{"kind":"layout","id":"ly/p83mt83u","editable":false,"name":"Section Header","type":"","placeholders":[{"name":"title","type":"title"}]}
+{"kind":"layout","id":"ly/4v2ps7ql","editable":false,"name":"Title and Body","type":"","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/3yt8jipk","editable":false,"name":"Title and Two Column","type":"","placeholders":[{"name":"title","type":"title"},{"name":"Left column","type":"body"},{"name":"Right column","type":"body"}]}
+{"kind":"layout","id":"ly/elwrupwj","editable":false,"name":"Title and One Column","type":"","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/14ra9krq","editable":false,"name":"Blank","type":"blank"}
+{"kind":"slide","id":"sl/y90nupkv","slideIndex":0,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FlexPOS","textShapes":7,"backgroundColor":"rgba(49,7,9,1)"}
+{"kind":"slide","id":"sl/hwbqtkby","slideIndex":1,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/ofy9wn61","slideIndex":2,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/jyx0ra1s","slideIndex":3,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/i107q5of","slideIndex":4,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/x8f69ofe","slideIndex":5,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/gnmp4jqx","slideIndex":6,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/fu1gfa1s","slideIndex":7,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/udsvah03","slideIndex":8,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/m90b6t0r","slideIndex":9,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/jetc3ut0","slideIndex":10,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/8f2psfyx","slideIndex":11,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/hgzapcr6","slideIndex":12,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/6lsnupw7","slideIndex":13,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/vaxsvy10","slideIndex":14,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/gny5sjyp","slideIndex":15,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/14bup87q","slideIndex":16,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(255,255,255,1)"}
+{"kind":"slide","id":"sl/y5wne50z","slideIndex":17,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/nid43ytk","slideIndex":18,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/zyxsni5k","slideIndex":19,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/m1wvqtk3","slideIndex":20,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/5onypobq","slideIndex":21,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/c7uhcr6t","slideIndex":22,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/7qto7e10","slideIndex":23,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/69wfm9o7","slideIndex":24,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/l0bepsfm","slideIndex":25,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/4vyxknqp","slideIndex":26,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/3mdove10","slideIndex":27,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/i5o3q10v","slideIndex":28,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/wnqh07ex","slideIndex":29,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/lcn6tkb6","slideIndex":30,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/6l0j294r","slideIndex":31,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/nax4b2dk","slideIndex":32,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/ofu103u5","slideIndex":33,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/1obmtofm","slideIndex":34,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"FLEXPOS · ENTERPRISE POS","textShapes":5,"backgroundColor":"rgba(245,236,229,1)"}
+{"kind":"slide","id":"sl/m9s3ehgf","slideIndex":35,"layout":{"id":"ly/14ra9krq","name":"Blank"},"title":"Thank You","textShapes":3,"backgroundColor":"rgba(49,7,9,1)"}
